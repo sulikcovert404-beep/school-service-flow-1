@@ -28,6 +28,8 @@ export async function getSessionUser(ctx: QueryCtx): Promise<SessionUser | null>
   if (userId === null) return null;
   const user = await ctx.db.get(userId);
   if (!user || !user.role) return null;
+  // Platform-level deactivation (Super Admin) blocks every session guard.
+  if (user.isActive === false) return null;
   return {
     userId,
     role: user.role,
@@ -61,6 +63,40 @@ export async function requireSchoolAdminMutation(
   ctx: MutationCtx,
 ): Promise<AdminContext> {
   return requireSchoolAdmin(ctx);
+}
+
+/**
+ * Platform-level guard: only role=admin (Super Admin). No tenant context —
+ * this role deliberately crosses tenant boundaries for platform management.
+ */
+export async function requireSuperAdmin(
+  ctx: QueryCtx,
+): Promise<{ userId: Id<"users"> }> {
+  const session = await getSessionUser(ctx);
+  if (!session) throw new Error("UNAUTHENTICATED");
+  if (session.role !== "admin") throw new Error("FORBIDDEN");
+  return { userId: session.userId };
+}
+
+/** Audit row for a Super Admin action (no tenant context). */
+export async function writePlatformAudit(
+  ctx: MutationCtx,
+  actorUserId: Id<"users">,
+  action: string,
+  resourceType: string,
+  summary: string,
+  resourceId?: string,
+  schoolId?: Id<"schools">,
+) {
+  await ctx.db.insert("auditLogs", {
+    schoolId,
+    actorUserId,
+    action,
+    resourceType,
+    resourceId,
+    summary,
+    createdAt: Date.now(),
+  });
 }
 
 /**

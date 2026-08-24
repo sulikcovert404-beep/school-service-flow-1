@@ -57,6 +57,7 @@ const schema = defineSchema(
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
+      isActive: v.optional(v.boolean()), // platform-level enable/disable (Super Admin)
       schoolId: v.optional(v.id("schools")), // tenant context, derived server-side only
       driverProfileId: v.optional(v.id("drivers")), // set for role=driver
       parentProfileId: v.optional(v.id("parents")), // set for role=parent
@@ -162,6 +163,7 @@ const schema = defineSchema(
       source: v.union(v.literal("manual"), v.literal("driver"), v.literal("seed")),
     })
       .index("by_school_time", ["schoolId", "serverTimestamp"])
+      .index("by_time", ["serverTimestamp"])
       .index("by_student_time", ["studentId", "serverTimestamp"])
       .index("by_service_time", ["serviceId", "serverTimestamp"])
       .index("by_idempotency", ["schoolId", "idempotencyKey"]),
@@ -189,6 +191,7 @@ const schema = defineSchema(
       sentAt: v.optional(v.number()),
     })
       .index("by_school_time", ["schoolId", "createdAt"])
+      .index("by_time", ["createdAt"])
       .index("by_status", ["status"])
       .index("by_parent_time", ["parentId", "createdAt"]),
 
@@ -204,14 +207,17 @@ const schema = defineSchema(
       .index("by_token", ["token"]),
 
     auditLogs: defineTable({
-      schoolId: v.id("schools"),
+      // Optional: platform-level (Super Admin) actions have no tenant context.
+      schoolId: v.optional(v.id("schools")),
       actorUserId: v.id("users"),
       action: v.string(), // e.g. "student.create"
       resourceType: v.string(),
       resourceId: v.optional(v.string()),
       summary: v.string(),
       createdAt: v.number(),
-    }).index("by_school_time", ["schoolId", "createdAt"]),
+    })
+      .index("by_school_time", ["schoolId", "createdAt"])
+      .index("by_time", ["createdAt"]),
   },
   {
     schemaValidation: false,

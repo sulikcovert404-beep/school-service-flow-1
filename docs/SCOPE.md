@@ -24,7 +24,7 @@ Android Apps واقعی · Live GPS / Tracking · ETA · Payments · Messaging �
 - **Transactional Outbox اعلان‌ها**: جدول `notifications` با وضعیت `QUEUED / SENT / FAILED`؛ Worker هر دقیقه (Convex cron) صف را تخلیه می‌کند. در v1 ارسال شبیه‌سازی شده است — جای‌گذاری FCM فقط همین handler را تغییر می‌دهد.
 - **پورتال والد (وب، `/parent`)**: وضعیت زنده فرزندان، تایم‌لاین امروز، اطلاعات سرویس/راننده/خودرو، تاریخچه اعلان‌ها.
 - **لاگ اعلان‌ها در داشبورد مدرسه** (`/dashboard/notifications`).
-- **Super Admin (وب، `/admin`)**: آمار کل پلتفرم + جدول مدارس (نقش `admin`).
+- **Super Admin (وب، `/admin`)**: نقش `admin` — نمای کلی پلتفرم، مدیریت Tenantها (ایجاد/ویرایش/فعال‌وغیرفعال مدارس)، مدیریت کاربران سراسری (تغییر نقش + فعال/غیرفعال با قطع دسترسی فوری)، گزارش سراسری رویدادها، لاگ اعلان‌های همه مدارس، حسابرسی سراسری. همه عملیات حساس Super Admin در `auditLogs` ثبت می‌شود (schoolId اختیاری برای اکشن‌های پلتفرمی).
 
 ## ARCHITECTURE.md
 
@@ -56,6 +56,7 @@ Android Apps واقعی · Live GPS / Tracking · ETA · Payments · Messaging �
 4. Minimalism theme طبق خواسته Product Owner: تک‌رنگ، divider ظریف، whitespace زیاد.
 5. **فاز ۲ به‌جای اپ Android**: در این محیط فقط وب قابل اجراست؛ کنسول راننده و پورتال والد همان قرارداد API و جریان رویداد اپ‌های Android را پیاده می‌کنند (offline queue + idempotency + outbox) تا انتقال آینده به Kotlin/Compose صرفاً لایه UI باشد.
 6. **پیش‌نمایش نقش (Role Preview)**: در دمو، مدیر مدرسه می‌تواند کنسول راننده/پورتال والد را برای راننده/والدِ تننت خودش باز کند؛ کاربران واقعی `driver`/`parent` هم از همان گاردها عبور می‌کنند. Cross-tenant همچنان Forbidden است.
+8. **دسترسی Super Admin**: تغییر نقش/غیرفعال‌سازی کاربر خودش ممنوع (`CANNOT_CHANGE_SELF`)؛ کاربر `isActive=false` در همه گاردها مثل بدون‌احراز رفتار می‌شود.
 7. **ارسال اعلان FCM واقعی وصل شد** (FCM HTTP v1 با OAuth JWT سرویس‌اکانت؛ متغیرهای `FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY`). تست اتصال: **Passed** (پروژه app-school-1ecc8). تحویل به دستگاه واقعی نیازمند ثبت توکن Push والدین (جدول `devices`) است؛ والد بدون دستگاه ثبت‌شده → وضعیت SENT با یادداشت `NO_DEVICE_REGISTERED` تا صف گیر نکند. بدون کلید → ارسال شبیه‌سازی می‌ماند.
 
 ## SCALE_TARGETS.md
