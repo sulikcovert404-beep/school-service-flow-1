@@ -80,7 +80,7 @@ export const claimSuperAdmin = mutation({
     if (userId === null) throw new Error("UNAUTHENTICATED");
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("UNAUTHENTICATED");
-    if (user.schoolId) throw new Error("ALREADY_TENANT_ADMIN");
+    if (user.role === "admin") return; // already platform admin
     await ctx.db.patch(userId, { role: "admin" });
   },
 });

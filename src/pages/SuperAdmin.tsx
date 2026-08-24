@@ -21,6 +21,7 @@ export default function SuperAdmin() {
   const { user } = useAuth();
   const claim = useMutation(api.superAdmin.claimSuperAdmin);
   const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const overview = useQuery(
     api.superAdmin.globalOverview,
     user?.role === "admin" ? {} : "skip",
@@ -41,16 +42,21 @@ export default function SuperAdmin() {
             disabled={claiming}
             onClick={async () => {
               setClaiming(true);
+              setClaimError(null);
               try {
                 await claim({});
                 window.location.reload();
-              } finally {
+              } catch {
+                setClaimError("دریافت نقش ناموفق بود. لطفاً دوباره تلاش کنید.");
                 setClaiming(false);
               }
             }}
           >
             {claiming ? "…" : "دریافت نقش مدیر پلتفرم (دمو)"}
           </Button>
+          {claimError && (
+            <p className="mt-3 text-xs text-destructive">{claimError}</p>
+          )}
           <div className="mt-4">
             <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
               بازگشت به داشبورد مدرسه
