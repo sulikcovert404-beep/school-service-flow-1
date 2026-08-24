@@ -218,6 +218,13 @@ const schema = defineSchema(
     })
       .index("by_school_time", ["schoolId", "createdAt"])
       .index("by_time", ["createdAt"]),
+
+    // Fixed-window rate limiting for sensitive/abuse-prone mutations.
+    rateLimits: defineTable({
+      key: v.string(),
+      windowStart: v.number(),
+      count: v.number(),
+    }).index("by_key", ["key"]),
   },
   {
     schemaValidation: false,

@@ -22,6 +22,7 @@ import {
 import { useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQuery } from "convex/react";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 type Status = "waiting" | "picked_up" | "dropped_off" | "absent";
 
@@ -48,6 +49,7 @@ export default function ParentPortal() {
 
   // Web Push subscription (only offered when VAPID keys are configured).
   const webPushKey = useQuery(api.notifications.getWebPushPublicKey);
+  const pwa = usePwaInstall();
   const registerDevice = useMutation(api.notifications.registerDevice);
   const [pushState, setPushState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [pushError, setPushError] = useState<string | null>(null);
@@ -133,6 +135,18 @@ export default function ParentPortal() {
               </div>
             )}
           </section>
+        )}
+
+        {/* PWA install (Android Chrome offers an install prompt) */}
+        {pwa.isInstallable && !pwa.isStandalone && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4 w-full rounded-full font-normal"
+            onClick={() => pwa.install()}
+          >
+            نصب اپ روی این دستگاه
+          </Button>
         )}
 
         {/* Web Push subscription (only when VAPID keys are configured) */}

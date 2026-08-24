@@ -7,7 +7,13 @@
 - **School Web Dashboard** — هسته اصلی (فقط School Admin).
 - **فاز ۲ (تأییدشده توسط Product Owner طبق دیاگرام معماری)**: کنسول وب راننده (offline-first + idempotency)، پورتال وب والد (Today Status/Timeline/اعلان‌ها)، Transactional Outbox اعلان‌ها + Worker (cron)، لاگ اعلان‌ها، Super Admin وب.
 - اپ‌های Android واقعی، Live GPS، Payments و… همچنان خارج از محدوده است.
+- **فاز ۳**: PWA نصب‌شدنی (manifest + service worker) + Web Push مرورگر (VAPID) به‌عنوان کانال دوم اعلان‌ها.
 - هر چیز خارج از این محدوده (GPS, tracking, payments, …) ممنوع است مگر Product Owner تأیید کند.
+
+## Security Rules
+- Super Admin فقط با کلید `SUPER_ADMIN_SETUP_KEY` و فقط برای اولین ادمین bootstrap می‌شود؛ بعد از آن فقط از طریق Super Admin موجود.
+- Rate limit: ۶۰۰ رویداد/دقیقه به‌ازای هر مدرسه (`checkRateLimit` در guard.ts).
+- قرارداد API اپ‌های موبایل: `docs/MOBILE_API.md` · بازبینی امنیتی: `docs/SECURITY_REVIEW.md`.
 
 ## Architecture
 - Frontend: Vite + React 19 + TypeScript + Tailwind v4 + shadcn/ui + react-router.

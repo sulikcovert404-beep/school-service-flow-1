@@ -150,6 +150,31 @@ export async function requireDriverActor(
   throw new Error("FORBIDDEN");
 }
 
+/**
+ * Fixed-window rate limiter (DB-backed, works across serverless instances).
+ * Throws RATE_LIMITED when the caller exceeds `limit` requests per window.
+ */
+export async function checkRateLimit(
+  ctx: MutationCtx,
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<void> {
+  const now = Date.now();
+  const row = await ctx.db
+    .query("rateLimits")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .first();
+
+  if (!row || now - row.windowStart >= windowMs) {
+    if (row) await ctx.db.delete(row._id);
+    await ctx.db.insert("rateLimits", { key, windowStart: now, count: 1 });
+    return;
+  }
+  if (row.count >= limit) throw new Error("RATE_LIMITED");
+  await ctx.db.patch(row._id, { count: row.count + 1 });
+}
+
 /** Append an audit log row for a sensitive operation. */
 export async function writeAudit(
   ctx: MutationCtx,

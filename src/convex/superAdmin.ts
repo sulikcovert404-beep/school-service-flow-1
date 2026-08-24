@@ -3,7 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query, QueryCtx } from "./_generated/server";
-import { requireSuperAdmin, writePlatformAudit } from "./guard";
+import { checkRateLimit, requireSuperAdmin, writePlatformAudit } from "./guard";
 import { roleValidator } from "./schema";
 
 const TEHRAN_OFFSET_MS = 3.5 * 3600_000;
@@ -94,19 +94,42 @@ export const globalOverview = query({
 });
 
 /**
- * Demo-only: lets a fresh signed-in user claim the platform-admin role so the
- * Super Admin dashboard is reachable in this environment. Must be removed or
- * gated behind an invite flow before production.
+ * Bootstrap the first Super Admin. Requires the platform setup key from the
+ * Keys tab (SUPER_ADMIN_SETUP_KEY) and only works while no Super Admin exists —
+ * after that, additional admins can only be granted by an existing Super Admin
+ * (setUserRole). Brute-force limited and audited.
  */
 export const claimSuperAdmin = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { setupKey: v.string() },
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("UNAUTHENTICATED");
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("UNAUTHENTICATED");
     if (user.role === "admin") return; // already platform admin
+
+    // Brute-force protection on the setup key.
+    await checkRateLimit(ctx, `superadmin-claim:${userId}`, 5, 10 * 60_000);
+
+    const expected = process.env.SUPER_ADMIN_SETUP_KEY;
+    const existingAdmin = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "admin"))
+      .first();
+
+    if (!expected || existingAdmin || args.setupKey !== expected) {
+      throw new Error("FORBIDDEN");
+    }
+
     await ctx.db.patch(userId, { role: "admin" });
+    await ctx.db.insert("auditLogs", {
+      actorUserId: userId,
+      action: "platform.super_admin_bootstrap",
+      resourceType: "user",
+      resourceId: userId,
+      summary: "اولین مدیر پلتفرم با کلید setup فعال شد",
+      createdAt: Date.now(),
+    });
   },
 });
 

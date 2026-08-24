@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { getSessionUser, requireDriverActor } from "./guard";
+import { checkRateLimit, getSessionUser, requireDriverActor } from "./guard";
 import { enqueueForEvent } from "./notifications";
 
 const TEHRAN_OFFSET_MS = 3.5 * 60 * 60 * 1000;
@@ -143,6 +143,10 @@ export const recordEvent = mutation({
     const service = await ctx.db.get(args.serviceId);
     if (!service || !service.isActive) throw new Error("SERVICE_NOT_FOUND");
     const actor = await requireDriverActor(ctx, service.driverId, service.schoolId);
+
+    // Abuse guard: far above any legitimate school's peak, low enough to stop
+    // runaway clients. Real peak for a 1,000-student school is ~35 events/min.
+    await checkRateLimit(ctx, `events:${service.schoolId}`, 600, 60_000);
 
     const [student, assigned] = await Promise.all([
       ctx.db.get(args.studentId),

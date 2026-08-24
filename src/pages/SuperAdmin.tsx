@@ -96,26 +96,36 @@ export default function SuperAdmin() {
           <ShieldCheck className="mx-auto size-8 text-muted-foreground" />
           <h1 className="mt-4 text-lg font-semibold">داشبورد مدیریت پلتفرم</h1>
           <p className="mt-2 text-sm leading-7 text-muted-foreground">
-            این بخش مخصوص مدیر پلتفرم (Super Admin) است. حساب شما مدیر مدرسه است.
-            برای نمایش دمو می‌توانید نقش مدیر پلتفرم بگیرید.
+            این بخش مخصوص مدیر پلتفرم (Super Admin) است. برای فعال‌سازی اولین مدیر
+            پلتفرم، کلید Setup را وارد کنید (متغیر SUPER_ADMIN_SETUP_KEY در تب Keys).
           </p>
-          <Button
-            className="mt-5"
-            disabled={claiming}
-            onClick={async () => {
+          <form
+            className="mt-5 flex gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
               setClaiming(true);
               setClaimError(null);
               try {
-                await claim({});
+                const key = new FormData(e.currentTarget).get("setupKey") as string;
+                await claim({ setupKey: key });
                 window.location.reload();
               } catch {
-                setClaimError("دریافت نقش ناموفق بود. لطفاً دوباره تلاش کنید.");
+                setClaimError("کلید نامعتبر است یا مدیر پلتفرم قبلاً فعال شده.");
                 setClaiming(false);
               }
             }}
           >
-            {claiming ? "…" : "دریافت نقش مدیر پلتفرم (دمو)"}
-          </Button>
+            <input
+              name="setupKey"
+              type="password"
+              required
+              placeholder="کلید Setup پلتفرم"
+              className="h-9 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+            />
+            <Button type="submit" disabled={claiming}>
+              {claiming ? "…" : "فعال‌سازی"}
+            </Button>
+          </form>
           {claimError && (
             <p className="mt-3 text-xs text-destructive">{claimError}</p>
           )}
