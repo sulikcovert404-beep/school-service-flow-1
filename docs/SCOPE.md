@@ -1,0 +1,50 @@
+# School Service Platform — v1 Documentation
+
+> Source of Truth. نسخهٔ ۱ دقیقاً همین محدوده را پوشش می‌دهد و هیچ چیز بیشتر.
+
+## SCOPE.md — Version 1
+
+**شامل:**
+- داشبورد وب مدرسه (School Web Dashboard) — مینیمال، Responsive، RTL.
+- کاربران نسخه اول: فقط مدیر مدرسه (School Admin).
+- مدیریت: دانش‌آموزان، والدین، رانندگان، خودروها، مسیرها، سرویس‌ها + تخصیص دانش‌آموز به سرویس.
+- ثبت وضعیت رفت‌وبرگشت به‌صورت Event append-only:
+  `PICKED_UP · DROPPED_OFF · ABSENT`
+- نمای کلی با آمار زنده: کل دانش‌آموزان / رانندگان / خودروها / سرویس‌ها + سوار شده، در انتظار، پیاده شده.
+- مانیتورینگ زنده سرویس‌های امروز و ثبت دستی وضعیت توسط مدیر (MANUAL_OVERRIDE در Audit).
+- گزارش رویدادها با فیلتر + Audit Log.
+
+**خارج از نسخه ۱ (ممنوع تا تأیید Product Owner):**
+Driver App · Parent App · Super Admin · Push Notification · Live GPS / Tracking · ETA · Payments · Messaging · AI Route Optimization.
+
+## ARCHITECTURE.md
+
+- **Modular Monolith روی Convex**: schema واحد + ماژول‌های query/mutation به تفکیک entity.
+- **Multi-Tenant**: هر School یک Tenant؛ `schoolId` همیشه از session کاربر استخراج می‌شود (هرگز از client پذیرفته نمی‌شود). Cross-tenant access → Forbidden.
+- **Event-oriented**: `attendanceEvents` کاملاً append-only؛ اصلاح وضعیت = رویداد جدید (CORRECTED/MANUAL_OVERRIDE) نه overwrite.
+- **Server time** مرجع زمانی است.
+- مسیر رشد آینده (خارج از v1): Outbox → Queue → Workers برای Push، Partition-ready بودن جدول رویدادها با index‌های `(schoolId, serverTimestamp)`.
+
+## DATA_MODEL.md
+
+| Table | توضیح |
+|---|---|
+| schools | Tenant اصلی |
+| users | کاربر Convex Auth + role (`school_admin` در v1) + schoolId |
+| students / parents / parentLinks | دانش‌آموز، والد، رابط چند‌به‌چند |
+| drivers / vehicles / routes | منابع سرویس |
+| services | ترکیب route+vehicle+driver+shift (morning/return) |
+| serviceStudents | تخصیص دانش‌آموز به سرویس |
+| attendanceEvents | رویداد رفت‌وبرگشت (append-only) |
+| auditLogs | لاگ عملیات حساس |
+
+## DECISIONS.md
+
+1. **Convex به‌جای NestJS/PostgreSQL**: محیط اجرای این نسخه Freebuff/Convex است؛ مدل داده و مرزهای ماژول‌ها طوری طراحی شده که مفاهیم (Tenant enforcement، Event append-only، Audit) مستقل از پلتفرم بمانند.
+2. **Guest/OTP login حفظ شده** تا تست سریع داشبورد ممکن باشد؛ نقش admin هنگام bootstrap مدرسه صادر می‌شود.
+3. **ثبت دستی وضعیت در v1**: چون Driver App خارج از scope است، مدیر مدرسه می‌تواند وضعیت را دستی ثبت کند (با Audit) تا جریان Event و آمار زنده قابل استفاده باشد.
+4. Minimalism theme طبق خواسته Product Owner: تک‌رنگ، divider ظریف، whitespace زیاد.
+
+## SCALE_TARGETS.md
+
+اعداد معماری (۵۵۶ eps میانگین خام در مقیاس ۱M دانش‌آموز) فقط Target هستند و بدون Benchmark واقعی Verified اعلام نمی‌شوند. در v1 هیچ benchmark اجرا نشده — status: **Not measured**.
