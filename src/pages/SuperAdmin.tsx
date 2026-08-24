@@ -1,12 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,7 +10,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -148,6 +140,8 @@ export default function SuperAdmin() {
   );
 }
 
+type SchoolDraft = { name: string; city: string; phone: string };
+
 function SuperAdminPanel() {
   const overview = useQuery(api.superAdmin.globalOverview, {});
   const createSchool = useMutation(api.superAdmin.createSchool);
@@ -155,12 +149,18 @@ function SuperAdminPanel() {
   const setUserRole = useMutation(api.superAdmin.setUserRole);
   const setUserActive = useMutation(api.superAdmin.setUserActive);
 
-  // School management form
+  // Create-school form
   const [newName, setNewName] = useState("");
   const [newCity, setNewCity] = useState("");
   const [creating, setCreating] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ id: string; name: string; city: string; phone: string } | null>(null);
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Inline school editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<SchoolDraft>({ name: "", city: "", phone: "" });
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // Users tab
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -177,43 +177,58 @@ function SuperAdminPanel() {
   const handleCreateSchool = async () => {
     if (!newName.trim()) return;
     setCreating(true);
+    setFormError(null);
     try {
       await createSchool({ name: newName, city: newCity || undefined });
       setNewName("");
       setNewCity("");
       toast.success("مدرسه ایجاد شد");
     } catch {
-      toast.error("ایجاد مدرسه ناموفق بود");
+      setFormError("ایجاد مدرسه ناموفق بود. دوباره تلاش کنید.");
     } finally {
       setCreating(false);
     }
   };
 
+  const startEdit = (id: string, name: string, city: string | null, phone: string | null) => {
+    setRowError(null);
+    setEditingId(id);
+    setDraft({ name, city: city ?? "", phone: phone ?? "" });
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!draft.name.trim()) {
+      setRowError("نام مدرسه نمی‌تواند خالی باشد.");
+      return;
+    }
+    setSavingId(id);
+    setRowError(null);
+    try {
+      await updateSchool({
+        schoolId: id as never,
+        name: draft.name,
+        city: draft.city || undefined,
+        phone: draft.phone || undefined,
+      });
+      setEditingId(null);
+      toast.success("مدرسه به‌روزرسانی شد");
+    } catch {
+      setRowError("ذخیره ناموفق بود. دوباره تلاش کنید.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const handleToggleSchool = async (id: string, isActive: boolean) => {
+    setTogglingId(id);
+    setRowError(null);
     try {
       await updateSchool({ schoolId: id as never, isActive });
       toast.success(isActive ? "مدرسه فعال شد" : "مدرسه غیرفعال شد");
     } catch {
-      toast.error("تغییر وضعیت ناموفق بود");
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editTarget) return;
-    setSavingEdit(true);
-    try {
-      await updateSchool({
-        schoolId: editTarget.id as never,
-        name: editTarget.name,
-        city: editTarget.city || undefined,
-        phone: editTarget.phone || undefined,
-      });
-      setEditTarget(null);
-      toast.success("مدرسه به‌روزرسانی شد");
-    } catch {
-      toast.error("به‌روزرسانی ناموفق بود");
+      setRowError("تغییر وضعیت ناموفق بود. دوباره تلاش کنید.");
     } finally {
-      setSavingEdit(false);
+      setTogglingId(null);
     }
   };
 
@@ -316,6 +331,7 @@ function SuperAdminPanel() {
                 {creating ? "…" : "ایجاد مدرسه"}
               </Button>
             </div>
+            {formError && <p className="mt-2 text-xs text-destructive">{formError}</p>}
 
             <div className="mt-4 overflow-hidden rounded-lg border">
               <Table dir="rtl">
@@ -346,36 +362,90 @@ function SuperAdminPanel() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {overview?.schools.map((s) => (
-                    <TableRow key={s._id} className={!s.isActive ? "opacity-60" : ""}>
-                      <TableCell className="font-medium">{s.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{s.city ?? "—"}</TableCell>
-                      <TableCell className="tabular-nums">{formatNumber(s.adminCount)}</TableCell>
-                      <TableCell className="tabular-nums">{formatNumber(s.counts.students)}</TableCell>
-                      <TableCell className="tabular-nums">{formatNumber(s.counts.services)}</TableCell>
-                      <TableCell className="tabular-nums">{formatNumber(s.todayEvents)}</TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={s.isActive}
-                          onCheckedChange={(v) => handleToggleSchool(s._id, v)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-left">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setEditTarget({ id: s._id, name: s.name, city: s.city ?? "", phone: s.phone ?? "" })
-                          }
-                        >
-                          ویرایش
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {overview?.schools.map((s) => {
+                    const isEditing = editingId === s._id;
+                    return (
+                      <TableRow key={s._id} className={!s.isActive ? "opacity-60" : ""}>
+                        <TableCell className="min-w-44 font-medium">
+                          {isEditing ? (
+                            <Input
+                              value={draft.name}
+                              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                              className="h-8"
+                            />
+                          ) : (
+                            s.name
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <Input
+                              value={draft.city}
+                              onChange={(e) => setDraft({ ...draft, city: e.target.value })}
+                              className="h-8 w-28"
+                            />
+                          ) : (
+                            <span className="text-muted-foreground">{s.city ?? "—"}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="tabular-nums">{formatNumber(s.adminCount)}</TableCell>
+                        <TableCell className="tabular-nums">{formatNumber(s.counts.students)}</TableCell>
+                        <TableCell className="tabular-nums">{formatNumber(s.counts.services)}</TableCell>
+                        <TableCell className="tabular-nums">{formatNumber(s.todayEvents)}</TableCell>
+                        <TableCell>
+                          {isEditing ? (
+                            <span className="text-xs text-muted-foreground">
+                              {s.isActive ? "فعال" : "غیرفعال"}
+                            </span>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={togglingId === s._id}
+                              onClick={() => handleToggleSchool(s._id, !s.isActive)}
+                            >
+                              {togglingId === s._id ? "…" : s.isActive ? "غیرفعال کردن" : "فعال‌سازی"}
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-left">
+                          {isEditing ? (
+                            <div className="flex justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                disabled={savingId === s._id || !draft.name.trim()}
+                                onClick={() => handleSaveEdit(s._id)}
+                              >
+                                {savingId === s._id ? "…" : "ذخیره"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setRowError(null);
+                                }}
+                              >
+                                انصراف
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEdit(s._id, s.name, s.city, s.phone)}
+                            >
+                              ویرایش
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
+            {rowError && <p className="mt-2 text-xs text-destructive">{rowError}</p>}
           </TabsContent>
 
           {/* ---- Users ---- */}
@@ -406,12 +476,12 @@ function SuperAdminPanel() {
                     <TableHead>کاربر</TableHead>
                     <TableHead>مدرسه</TableHead>
                     <TableHead>نقش</TableHead>
-                    <TableHead>فعال</TableHead>
+                    <TableHead className="text-left">دسترسی</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.results.map((u) => (
-                    <TableRow key={u.id}>
+                    <TableRow key={u.id} className={!u.isActive ? "opacity-60" : ""}>
                       <TableCell>
                         <div className="font-medium">{u.name ?? "بدون نام"}</div>
                         {u.email && (
@@ -449,13 +519,15 @@ function SuperAdminPanel() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={u.isActive}
-                          onCheckedChange={async (v) => {
+                      <TableCell className="text-left">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={u.isSelf}
+                          onClick={async () => {
                             try {
-                              await setUserActive({ userId: u.id, isActive: v });
-                              toast.success(v ? "کاربر فعال شد" : "کاربر غیرفعال شد");
+                              await setUserActive({ userId: u.id, isActive: !u.isActive });
+                              toast.success(u.isActive ? "کاربر غیرفعال شد" : "کاربر فعال شد");
                             } catch (err) {
                               toast.error(
                                 err instanceof Error && err.message.includes("CANNOT_CHANGE_SELF")
@@ -464,7 +536,9 @@ function SuperAdminPanel() {
                               );
                             }
                           }}
-                        />
+                        >
+                          {u.isActive ? "غیرفعال کردن" : "فعال‌سازی"}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -630,51 +704,6 @@ function SuperAdminPanel() {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Edit school dialog */}
-      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
-        <DialogContent dir="rtl">
-          <DialogHeader>
-            <DialogTitle>ویرایش مدرسه</DialogTitle>
-          </DialogHeader>
-          {editTarget && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-name">نام</Label>
-                <Input
-                  id="edit-name"
-                  value={editTarget.name}
-                  onChange={(e) => setEditTarget({ ...editTarget, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-city">شهر</Label>
-                <Input
-                  id="edit-city"
-                  value={editTarget.city}
-                  onChange={(e) => setEditTarget({ ...editTarget, city: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-phone">تلفن</Label>
-                <Input
-                  id="edit-phone"
-                  value={editTarget.phone}
-                  onChange={(e) => setEditTarget({ ...editTarget, phone: e.target.value })}
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditTarget(null)}>
-              انصراف
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={savingEdit || !editTarget?.name.trim()}>
-              {savingEdit ? "…" : "ذخیره"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

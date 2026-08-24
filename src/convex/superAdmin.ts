@@ -186,7 +186,7 @@ export const listUsers = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    await requireSuperAdmin(ctx);
+    const { userId: me } = await requireSuperAdmin(ctx);
 
     // Small-scale: collect + filter. At platform scale this moves to a
     // by_role index / search index.
@@ -206,6 +206,7 @@ export const listUsers = query({
         isAnonymous: u.isAnonymous ?? false,
         role: u.role ?? null,
         isActive: u.isActive ?? true,
+        isSelf: u._id === me,
         schoolId: u.schoolId ?? null,
         schoolName: await schoolName(ctx, u.schoolId),
         createdAt: u._creationTime,
