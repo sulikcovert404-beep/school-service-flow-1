@@ -15,7 +15,16 @@
 - گزارش رویدادها با فیلتر + Audit Log.
 
 **خارج از نسخه ۱ (ممنوع تا تأیید Product Owner):**
-Driver App · Parent App · Super Admin · Push Notification · Live GPS / Tracking · ETA · Payments · Messaging · AI Route Optimization.
+Android Apps واقعی · Live GPS / Tracking · ETA · Payments · Messaging · AI Route Optimization.
+
+## فاز ۲ — فلو کامل راننده → سرور → والد (طبق دیاگرام معماری)
+
+- **کنسول راننده (وب، `/driver`)**: انتخاب سرویس/شیفت، فهرست دانش‌آموزان، ثبت یک‌لمسی `PICKED_UP` / `DROPPED_OFF`، **offline-first** (صف محلی در localStorage، نشانگر Pending Sync، retry خودکار با backoff).
+- **مسیر بحرانی نوشتن**: `driverApp.recordEvent` → اعتبارسنجی مالکیت سرویس/دانش‌آموز → بررسی `idempotencyKey` (retry هرگز duplicate نمی‌سازد) → درج append-only → enqueue اعلان (outbox) → audit log → پاسخ موفق.
+- **Transactional Outbox اعلان‌ها**: جدول `notifications` با وضعیت `QUEUED / SENT / FAILED`؛ Worker هر دقیقه (Convex cron) صف را تخلیه می‌کند. در v1 ارسال شبیه‌سازی شده است — جای‌گذاری FCM فقط همین handler را تغییر می‌دهد.
+- **پورتال والد (وب، `/parent`)**: وضعیت زنده فرزندان، تایم‌لاین امروز، اطلاعات سرویس/راننده/خودرو، تاریخچه اعلان‌ها.
+- **لاگ اعلان‌ها در داشبورد مدرسه** (`/dashboard/notifications`).
+- **Super Admin (وب، `/admin`)**: آمار کل پلتفرم + جدول مدارس (نقش `admin`).
 
 ## ARCHITECTURE.md
 
@@ -35,7 +44,8 @@ Driver App · Parent App · Super Admin · Push Notification · Live GPS / Track
 | drivers / vehicles / routes | منابع سرویس |
 | services | ترکیب route+vehicle+driver+shift (morning/return) |
 | serviceStudents | تخصیص دانش‌آموز به سرویس |
-| attendanceEvents | رویداد رفت‌وبرگشت (append-only) |
+| attendanceEvents | رویداد رفت‌وبرگشت (append-only، دارای idempotencyKey) |
+| notifications | Outbox اعلان‌های والدین (QUEUED/SENT/FAILED) |
 | auditLogs | لاگ عملیات حساس |
 
 ## DECISIONS.md
@@ -44,6 +54,9 @@ Driver App · Parent App · Super Admin · Push Notification · Live GPS / Track
 2. **Guest/OTP login حفظ شده** تا تست سریع داشبورد ممکن باشد؛ نقش admin هنگام bootstrap مدرسه صادر می‌شود.
 3. **ثبت دستی وضعیت در v1**: چون Driver App خارج از scope است، مدیر مدرسه می‌تواند وضعیت را دستی ثبت کند (با Audit) تا جریان Event و آمار زنده قابل استفاده باشد.
 4. Minimalism theme طبق خواسته Product Owner: تک‌رنگ، divider ظریف، whitespace زیاد.
+5. **فاز ۲ به‌جای اپ Android**: در این محیط فقط وب قابل اجراست؛ کنسول راننده و پورتال والد همان قرارداد API و جریان رویداد اپ‌های Android را پیاده می‌کنند (offline queue + idempotency + outbox) تا انتقال آینده به Kotlin/Compose صرفاً لایه UI باشد.
+6. **پیش‌نمایش نقش (Role Preview)**: در دمو، مدیر مدرسه می‌تواند کنسول راننده/پورتال والد را برای راننده/والدِ تننت خودش باز کند؛ کاربران واقعی `driver`/`parent` هم از همان گاردها عبور می‌کنند. Cross-tenant همچنان Forbidden است.
+7. **ارسال اعلان در v1 شبیه‌سازی شده است** (بدون اعتبارنامه FCM) — status: Simulated, not delivered to real devices.
 
 ## SCALE_TARGETS.md
 

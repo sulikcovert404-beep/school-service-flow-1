@@ -24,6 +24,10 @@ const RoutesPage = lazy(() => import("./pages/dashboard/Routes.tsx"));
 const Services = lazy(() => import("./pages/dashboard/Services.tsx"));
 const Reports = lazy(() => import("./pages/dashboard/Reports.tsx"));
 const AuditLog = lazy(() => import("./pages/dashboard/AuditLog.tsx"));
+const Notifications = lazy(() => import("./pages/dashboard/Notifications.tsx"));
+const DriverConsole = lazy(() => import("./pages/DriverConsole.tsx"));
+const ParentPortal = lazy(() => import("./pages/ParentPortal.tsx"));
+const SuperAdmin = lazy(() => import("./pages/SuperAdmin.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -94,7 +98,32 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="services" element={<Services />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="audit" element={<AuditLog />} />
+                <Route path="notifications" element={<Notifications />} />
               </Route>
+              <Route
+                path="/driver"
+                element={
+                  <RequireAuth>
+                    <DriverConsole />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/parent"
+                element={
+                  <RequireAuth>
+                    <ParentPortal />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <RequireAuth>
+                    <SuperAdmin />
+                  </RequireAuth>
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

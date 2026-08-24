@@ -4,8 +4,9 @@
 سامانه مدیریت سرویس مدارس (School Service Platform). Event-oriented, multi-tenant by school.
 
 ## Version 1 Scope (LOCKED)
-- **School Web Dashboard فقط** — بدون Driver App / Parent App / Super Admin.
-- **کاربران نسخه اول: فقط School Admin.**
+- **School Web Dashboard** — هسته اصلی (فقط School Admin).
+- **فاز ۲ (تأییدشده توسط Product Owner طبق دیاگرام معماری)**: کنسول وب راننده (offline-first + idempotency)، پورتال وب والد (Today Status/Timeline/اعلان‌ها)، Transactional Outbox اعلان‌ها + Worker (cron)، لاگ اعلان‌ها، Super Admin وب.
+- اپ‌های Android واقعی، Live GPS، Payments و… همچنان خارج از محدوده است.
 - هر چیز خارج از این محدوده (GPS, tracking, payments, …) ممنوع است مگر Product Owner تأیید کند.
 
 ## Architecture
@@ -18,8 +19,12 @@
 ```
 src/
   convex/          # schema + queries/mutations (one module per entity)
-  pages/           # Landing, Auth, Dashboard layout
-  pages/dashboard/ # Overview, Students, Parents, Drivers, Vehicles, Routes, Services, Reports, AuditLog
+                   # + driverApp (idempotent write path), notifications (outbox+worker),
+                   #   parentApp, superAdmin, crons
+  hooks/           # use-offline-queue (Pending Sync / retry / idempotency client-side)
+  pages/           # Landing, Auth, Dashboard layout, DriverConsole, ParentPortal, SuperAdmin
+  pages/dashboard/ # Overview, Students, Parents, Drivers, Vehicles, Routes, Services,
+                   # Reports, AuditLog, Notifications
   components/ui/   # shadcn components
 docs/
 ```
@@ -28,6 +33,8 @@ docs/
 - Persian (fa) RTL UI. Minimalism theme: near-monochrome palette, subtle dividers, generous whitespace.
 - No business logic in UI — validation/state transitions live in Convex mutations.
 - Attendance events are **append-only**; corrections add a new event, never overwrite.
+- Driver events carry a client-generated `idempotencyKey` — retries never duplicate.
+- Notifications are **async only** (outbox table + cron worker) — never in the critical write path.
 - Every sensitive mutation writes an `auditLogs` row.
 - Server time (`Date.now()` in mutation) is the time source of truth.
 

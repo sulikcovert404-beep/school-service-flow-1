@@ -8,6 +8,8 @@ export const ROLES = {
   USER: "user",
   MEMBER: "member",
   SCHOOL_ADMIN: "school_admin",
+  DRIVER: "driver",
+  PARENT: "parent",
 } as const;
 
 export const roleValidator = v.union(
@@ -15,6 +17,8 @@ export const roleValidator = v.union(
   v.literal(ROLES.USER),
   v.literal(ROLES.MEMBER),
   v.literal(ROLES.SCHOOL_ADMIN),
+  v.literal(ROLES.DRIVER),
+  v.literal(ROLES.PARENT),
 );
 export type Role = Infer<typeof roleValidator>;
 
@@ -54,6 +58,8 @@ const schema = defineSchema(
 
       role: v.optional(roleValidator), // role of the user. do not remove
       schoolId: v.optional(v.id("schools")), // tenant context, derived server-side only
+      driverProfileId: v.optional(v.id("drivers")), // set for role=driver
+      parentProfileId: v.optional(v.id("parents")), // set for role=parent
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
     // ---- School Service Platform (v1) ----
@@ -150,11 +156,41 @@ const schema = defineSchema(
       note: v.optional(v.string()),
       actorUserId: v.id("users"),
       serverTimestamp: v.number(), // source of truth for time
+      clientTimestamp: v.optional(v.number()), // device clock, informational only
+      deviceId: v.optional(v.string()),
+      idempotencyKey: v.optional(v.string()), // client_event_id — retries never duplicate
       source: v.union(v.literal("manual"), v.literal("driver"), v.literal("seed")),
     })
       .index("by_school_time", ["schoolId", "serverTimestamp"])
       .index("by_student_time", ["studentId", "serverTimestamp"])
-      .index("by_service_time", ["serviceId", "serverTimestamp"]),
+      .index("by_service_time", ["serviceId", "serverTimestamp"])
+      .index("by_idempotency", ["schoolId", "idempotencyKey"]),
+
+    //
+    // Transactional outbox for parent push notifications (async — never on the
+    // driver's critical write path). A worker drains QUEUED rows; failures are
+    // retried with backoff and logged, never blocking the attendance write.
+    //
+    notifications: defineTable({
+      schoolId: v.id("schools"),
+      eventId: v.optional(v.id("attendanceEvents")),
+      parentId: v.id("parents"),
+      studentId: v.id("students"),
+      title: v.string(),
+      body: v.string(),
+      status: v.union(
+        v.literal("QUEUED"),
+        v.literal("SENT"),
+        v.literal("FAILED"),
+      ),
+      attempts: v.number(),
+      lastError: v.optional(v.string()),
+      createdAt: v.number(),
+      sentAt: v.optional(v.number()),
+    })
+      .index("by_school_time", ["schoolId", "createdAt"])
+      .index("by_status", ["status"])
+      .index("by_parent_time", ["parentId", "createdAt"]),
 
     auditLogs: defineTable({
       schoolId: v.id("schools"),

@@ -1,11 +1,41 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { Infer, v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
+import { roleValidator } from "./schema";
+
+export type Role = Infer<typeof roleValidator>;
 
 export type AdminContext = {
   userId: Id<"users">;
   schoolId: Id<"schools">;
 };
+
+export type SessionUser = {
+  userId: Id<"users">;
+  role: Role;
+  schoolId: Id<"schools"> | null;
+  driverProfileId: Id<"drivers"> | null;
+  parentProfileId: Id<"parents"> | null;
+};
+
+/**
+ * Resolve the signed-in user (or null). Tenant context always comes from the
+ * session — never from client-sent IDs.
+ */
+export async function getSessionUser(ctx: QueryCtx): Promise<SessionUser | null> {
+  const userId = await getAuthUserId(ctx);
+  if (userId === null) return null;
+  const user = await ctx.db.get(userId);
+  if (!user || !user.role) return null;
+  return {
+    userId,
+    role: user.role,
+    schoolId: user.schoolId ?? null,
+    driverProfileId: user.driverProfileId ?? null,
+    parentProfileId: user.parentProfileId ?? null,
+  };
+}
 
 /**
  * Tenant context is ALWAYS derived from the authenticated session — never from
@@ -31,6 +61,57 @@ export async function requireSchoolAdminMutation(
   ctx: MutationCtx,
 ): Promise<AdminContext> {
   return requireSchoolAdmin(ctx);
+}
+
+/**
+ * Actor for Parent App reads: a real parent user, or a School Admin previewing
+ * a parent of their own tenant (parentId argument required for preview).
+ */
+export async function requireParentActor(
+  ctx: QueryCtx,
+  requestedParentId: Id<"parents"> | null,
+): Promise<{ parentId: Id<"parents">; schoolId: Id<"schools">; isParent: boolean }> {
+  const session = await getSessionUser(ctx);
+  if (!session) throw new Error("UNAUTHENTICATED");
+  if (session.role === "parent") {
+    if (!session.parentProfileId || !session.schoolId) throw new Error("FORBIDDEN");
+    return { parentId: session.parentProfileId, schoolId: session.schoolId, isParent: true };
+  }
+  if (
+    (session.role === "school_admin" || session.role === "admin") &&
+    session.schoolId &&
+    requestedParentId
+  ) {
+    const parent = await ctx.db.get(requestedParentId);
+    if (!parent || parent.schoolId !== session.schoolId) throw new Error("FORBIDDEN");
+    return { parentId: requestedParentId, schoolId: session.schoolId, isParent: false };
+  }
+  throw new Error("FORBIDDEN");
+}
+
+/**
+ * Actor for driver-app writes: either a real driver user linked to the given
+ * service's driver profile, or a School Admin of the same tenant (preview
+ * mode). Returns the acting context; throws when neither applies.
+ */
+export async function requireDriverActor(
+  ctx: QueryCtx,
+  serviceDriverId: Id<"drivers">,
+  schoolId: Id<"schools">,
+): Promise<AdminContext & { isDriver: boolean }> {
+  const session = await getSessionUser(ctx);
+  if (!session) throw new Error("UNAUTHENTICATED");
+  if (session.schoolId !== schoolId) throw new Error("FORBIDDEN");
+  if (session.role === "driver") {
+    if (!session.driverProfileId || session.driverProfileId !== serviceDriverId) {
+      throw new Error("FORBIDDEN");
+    }
+    return { userId: session.userId, schoolId, isDriver: true };
+  }
+  if (session.role === "school_admin" || session.role === "admin") {
+    return { userId: session.userId, schoolId, isDriver: false };
+  }
+  throw new Error("FORBIDDEN");
 }
 
 /** Append an audit log row for a sensitive operation. */

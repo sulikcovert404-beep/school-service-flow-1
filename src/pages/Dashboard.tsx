@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  Bell,
   Bus,
   Car,
   ClipboardList,
@@ -13,6 +14,7 @@ import {
   LogOut,
   Route as RouteIcon,
   School,
+  Smartphone,
   UserRound,
   Users,
 } from "lucide-react";
@@ -31,6 +33,13 @@ const NAV = [
   { to: "/dashboard/services", label: "سرویس‌ها", icon: Bus },
   { to: "/dashboard/reports", label: "گزارش رویدادها", icon: FileBarChart },
   { to: "/dashboard/audit", label: "لاگ حسابرسی", icon: History },
+  { to: "/dashboard/notifications", label: "لاگ اعلان‌ها", icon: Bell },
+];
+
+const APP_LINKS = [
+  { to: "/driver", label: "کنسول راننده", icon: Bus },
+  { to: "/parent", label: "پورتال والد", icon: Smartphone },
+  { to: "/admin", label: "مدیریت پلتفرم", icon: School },
 ];
 
 export default function Dashboard() {
@@ -74,9 +83,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Separator className="my-5" />
-
-        <nav className="flex flex-col gap-0.5">
+        <Separator className="my-5" />        <nav className="flex flex-col gap-0.5">
           {NAV.map(({ to, label, icon: Icon, ...rest }) => (
             <NavLink
               key={to}
@@ -89,6 +96,22 @@ export default function Dashboard() {
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`
               }
+            >
+              <Icon className="size-4" strokeWidth={1.75} />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <Separator className="my-4" />
+
+        <p className="px-3 pb-2 text-[11px] font-medium text-muted-foreground">اپ‌های متصل</p>
+        <nav className="flex flex-col gap-0.5">
+          {APP_LINKS.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
             >
               <Icon className="size-4" strokeWidth={1.75} />
               {label}
@@ -121,7 +144,7 @@ export default function Dashboard() {
             </Button>
           </div>
           <nav className="mt-4 -mx-1 flex gap-1 overflow-x-auto pb-1">
-            {NAV.map(({ to, label, icon: Icon, ...rest }) => (
+            {[...NAV, ...APP_LINKS].map(({ to, label, icon: Icon, ...rest }) => (
               <NavLink
                 key={to}
                 to={to}
