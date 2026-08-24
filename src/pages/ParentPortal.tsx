@@ -39,13 +39,15 @@ export default function ParentPortal() {
   const parents = useQuery(api.parents.listWithChildren, isAdmin ? {} : "skip");
   const [previewParentId, setPreviewParentId] = useState<string | null>(null);
 
+  // Admins must pick a parent to preview first — otherwise skip the query
+  // (the guard would reject an unscoped request and crash the page).
   const children = useQuery(
     api.parentApp.myChildren,
-    isAdmin ? { parentId: (previewParentId ?? undefined) as never } : {},
+    isAdmin ? (previewParentId ? { parentId: previewParentId as never } : "skip") : {},
   );
   const notifications = useQuery(
     api.notifications.listForParent,
-    isAdmin ? { parentId: (previewParentId ?? undefined) as never } : {},
+    isAdmin ? (previewParentId ? { parentId: previewParentId as never } : "skip") : {},
   );
 
   return (
@@ -97,7 +99,12 @@ export default function ParentPortal() {
 
         {/* Children */}
         <section className="mt-5 flex flex-col gap-4">
-          {!children && <Skeleton className="h-40 w-full" />}
+          {!children && !isAdmin && <Skeleton className="h-40 w-full" />}
+          {!children && isAdmin && !previewParentId && (
+            <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+              برای مشاهده وضعیت، یک والد را انتخاب کنید.
+            </p>
+          )}
           {children?.length === 0 && (
             <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
               فرزندی به این حساب متصل نیست.
