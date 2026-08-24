@@ -26,6 +26,12 @@ Android Apps واقعی · Live GPS / Tracking · ETA · Payments · Messaging �
 - **لاگ اعلان‌ها در داشبورد مدرسه** (`/dashboard/notifications`).
 - **Super Admin (وب، `/admin`)**: نقش `admin` — نمای کلی پلتفرم، مدیریت Tenantها (ایجاد/ویرایش/فعال‌وغیرفعال مدارس)، مدیریت کاربران سراسری (تغییر نقش + فعال/غیرفعال با قطع دسترسی فوری)، گزارش سراسری رویدادها، لاگ اعلان‌های همه مدارس، حسابرسی سراسری. همه عملیات حساس Super Admin در `auditLogs` ثبت می‌شود (schoolId اختیاری برای اکشن‌های پلتفرمی).
 
+## فاز ۳ — PWA نصب‌شدنی + Web Push (جایگزین اپ Android در این محیط)
+
+- **PWA**: `manifest.webmanifest` فارسی RTL + Service Worker (`public/sw.js`) — نصب روی اندروید (آیکون، تمام‌صفحه، standalone). دکمه «نصب اپ» در کنسول راننده (hook `use-pwa-install`).
+- **Web Push مرورگر**: کانال دوم اعلان‌ها علاوه بر FCM. کلیدهای VAPID از `WEB_PUSH_PUBLIC_KEY / WEB_PUSH_PRIVATE_KEY` خوانده می‌شود؛ کلید public از کوئری `notifications.getWebPushPublicKey` به کلاینت می‌رسد و در پورتال والد بخش «اعلان‌های این دستگاه» اشتراک Push را ثبت می‌کند (جدول `devices` با platform `web`).
+- **Worker دوکاناله**: `fcm.deliverOutbox` برای دستگاه‌های `android` از FCM HTTP v1 و برای `web` از پروتکل Web Push (VAPID) استفاده می‌کند؛ اشتراک منقضی (404/410) حذف می‌شود.
+
 ## ARCHITECTURE.md
 
 - **Modular Monolith روی Convex**: schema واحد + ماژول‌های query/mutation به تفکیک entity.
@@ -58,6 +64,7 @@ Android Apps واقعی · Live GPS / Tracking · ETA · Payments · Messaging �
 6. **پیش‌نمایش نقش (Role Preview)**: در دمو، مدیر مدرسه می‌تواند کنسول راننده/پورتال والد را برای راننده/والدِ تننت خودش باز کند؛ کاربران واقعی `driver`/`parent` هم از همان گاردها عبور می‌کنند. Cross-tenant همچنان Forbidden است.
 8. **دسترسی Super Admin**: تغییر نقش/غیرفعال‌سازی کاربر خودش ممنوع (`CANNOT_CHANGE_SELF`)؛ کاربر `isActive=false` در همه گاردها مثل بدون‌احراز رفتار می‌شود.
 7. **ارسال اعلان FCM واقعی وصل شد** (FCM HTTP v1 با OAuth JWT سرویس‌اکانت؛ متغیرهای `FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY`). تست اتصال: **Passed** (پروژه app-school-1ecc8). تحویل به دستگاه واقعی نیازمند ثبت توکن Push والدین (جدول `devices`) است؛ والد بدون دستگاه ثبت‌شده → وضعیت SENT با یادداشت `NO_DEVICE_REGISTERED` تا صف گیر نکند. بدون کلید → ارسال شبیه‌سازی می‌ماند.
+8. **فاز ۳ (PWA + Web Push)**: اپ Android واقعی (Kotlin) در این محیط قابل build نیست؛ PWA همان جریان (offline queue + idempotency + push) را به‌صورت نصب‌شدنی روی اندروید ارائه می‌دهد. کلیدهای VAPID تولید شده و باید در Keys tab وارد شوند تا کانال Web Push فعال شود.
 
 ## SCALE_TARGETS.md
 

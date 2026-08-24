@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 import { useOfflineQueue } from "@/hooks/use-offline-queue";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 import {
   EVENT_LABELS,
   SHIFT_LABELS,
@@ -15,6 +16,7 @@ import {
   Bus,
   CheckCircle2,
   CloudOff,
+  Download,
   LogIn,
   LogOut,
   RefreshCw,
@@ -61,6 +63,7 @@ export default function DriverConsole() {
 
   const { pending, isOnline, syncing, enqueue } = useOfflineQueue();
   const [search, setSearch] = useState("");
+  const pwa = usePwaInstall();
 
   // Optimistic status: pending (unsynced) events override the server state.
   const pendingByStudent = useMemo(() => {
@@ -104,6 +107,17 @@ export default function DriverConsole() {
             داشبورد
           </Link>
           <div className="flex items-center gap-2">
+            {pwa.isInstallable && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 rounded-full font-normal"
+                onClick={() => pwa.install()}
+              >
+                <Download className="size-3" />
+                نصب اپ
+              </Button>
+            )}
             {isOnline ? (
               <Badge variant="outline" className="gap-1.5 rounded-full font-normal">
                 <CheckCircle2 className="size-3" />

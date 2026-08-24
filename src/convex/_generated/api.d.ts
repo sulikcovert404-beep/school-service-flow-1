@@ -28,6 +28,7 @@ import type * as students from "../students.js";
 import type * as superAdmin from "../superAdmin.js";
 import type * as users from "../users.js";
 import type * as vehicles from "../vehicles.js";
+import type * as webPush from "../webPush.js";
 
 import type {
   ApiFromModules,
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   superAdmin: typeof superAdmin;
   users: typeof users;
   vehicles: typeof vehicles;
+  webPush: typeof webPush;
 }>;
 
 /**

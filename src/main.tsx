@@ -67,6 +67,15 @@ function RouteSyncer() {
 }
 
 
+// PWA: register the service worker (push notifications + installability).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Non-fatal — the app works without the SW.
+    });
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <VlyToolbar />

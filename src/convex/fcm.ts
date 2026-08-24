@@ -166,11 +166,11 @@ export const deliverOutbox = action({
       }
 
       try {
-        const tokens = await ctx.runQuery(internal.notifications.listParentTokensInternal, {
+        const devices = await ctx.runQuery(internal.notifications.listParentTokensInternal, {
           parentId: n.parentId,
         });
 
-        if (tokens.length === 0) {
+        if (devices.length === 0) {
           await ctx.runMutation(internal.notifications.markResultInternal, {
             id: n._id,
             ok: true,
@@ -182,15 +182,32 @@ export const deliverOutbox = action({
 
         let anySuccess = false;
         let lastError: string | undefined;
-        for (const token of tokens) {
+        for (const device of devices) {
           try {
-            await sendFcm(creds, {
-              token,
-              notification: { title: n.title, body: n.body },
-            });
+            if (device.platform === "web") {
+              // Browser push subscription (Web Push / VAPID protocol).
+              const { sendWebPush, isGoneSubscription } = await import("./webPush");
+              try {
+                await sendWebPush({ title: n.title, body: n.body }, device.token);
+              } catch (err) {
+                if (isGoneSubscription(err)) {
+                  // Subscription expired → drop the device so it doesn't retry forever.
+                  await ctx.runMutation(internal.notifications.deleteDeviceInternal, {
+                    id: device.id,
+                  });
+                }
+                throw err;
+              }
+            } else {
+              // Android FCM registration token.
+              await sendFcm(creds, {
+                token: device.token,
+                notification: { title: n.title, body: n.body },
+              });
+            }
             anySuccess = true;
           } catch (err) {
-            lastError = err instanceof Error ? err.message : "unknown FCM error";
+            lastError = err instanceof Error ? err.message : "unknown push error";
           }
         }
 

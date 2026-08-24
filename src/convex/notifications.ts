@@ -81,6 +81,12 @@ export async function enqueueForEvent(
 
 // ---- Internal helpers used by the FCM worker (src/convex/fcm.ts) ----
 
+/** Public VAPID key for the browser subscription step (null = feature off). */
+export const getWebPushPublicKey = query({
+  args: {},
+  handler: () => process.env.WEB_PUSH_PUBLIC_KEY ?? null,
+});
+
 /** Session check for the FCM test action (runs in the default runtime). */
 export const fcmGuardSession = internalQuery({
   args: {},
@@ -108,7 +114,7 @@ export const listQueuedInternal = internalQuery({
   },
 });
 
-/** FCM tokens registered for a parent. */
+/** Push targets registered for a parent (FCM tokens + web subscriptions). */
 export const listParentTokensInternal = internalQuery({
   args: { parentId: v.id("parents") },
   handler: async (ctx, args) => {
@@ -116,7 +122,19 @@ export const listParentTokensInternal = internalQuery({
       .query("devices")
       .withIndex("by_parent", (q) => q.eq("parentId", args.parentId))
       .collect();
-    return devices.map((d) => d.token);
+    return devices.map((d) => ({
+      id: d._id,
+      token: d.token,
+      platform: d.platform,
+    }));
+  },
+});
+
+/** Remove a dead push target (expired/unsubscribed web subscription). */
+export const deleteDeviceInternal = internalMutation({
+  args: { id: v.id("devices") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
   },
 });
 

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 
 type Status = "waiting" | "picked_up" | "dropped_off" | "absent";
 
@@ -32,9 +32,47 @@ const STATUS_STYLES: Record<Status, string> = {
   absent: "bg-muted text-muted-foreground",
 };
 
+/** Convert a URL-safe base64 VAPID key to the Uint8Array PushManager expects. */
+function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const normalized = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(normalized);
+  const out = new Uint8Array(new ArrayBuffer(raw.length));
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
 export default function ParentPortal() {
   const ctx = useQuery(api.bootstrap.myContext);
   const isAdmin = ctx?.role === "school_admin" || ctx?.role === "admin";
+
+  // Web Push subscription (only offered when VAPID keys are configured).
+  const webPushKey = useQuery(api.notifications.getWebPushPublicKey);
+  const registerDevice = useMutation(api.notifications.registerDevice);
+  const [pushState, setPushState] = useState<"idle" | "working" | "done" | "error">("idle");
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  const enablePush = async () => {
+    if (!webPushKey) return;
+    setPushState("working");
+    setPushError(null);
+    try {
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(webPushKey),
+      });
+      await registerDevice({
+        token: JSON.stringify(subscription.toJSON()),
+        platform: "web",
+        parentId: isAdmin && previewParentId ? (previewParentId as never) : undefined,
+      });
+      setPushState("done");
+    } catch (err) {
+      setPushState("error");
+      setPushError(err instanceof Error ? err.message : "خطای ناشناخته");
+    }
+  };
 
   const parents = useQuery(api.parents.listWithChildren, isAdmin ? {} : "skip");
   const [previewParentId, setPreviewParentId] = useState<string | null>(null);
@@ -94,6 +132,37 @@ export default function ParentPortal() {
                 )}
               </div>
             )}
+          </section>
+        )}
+
+        {/* Web Push subscription (only when VAPID keys are configured) */}
+        {webPushKey && (
+          <section className="mt-5 rounded-lg border p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">اعلان‌های این دستگاه</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {pushState === "done"
+                    ? "فعال است — رویدادهای فرزندان را همین‌جا دریافت می‌کنید."
+                    : "با فعال‌سازی، لحظه سوار/پیاده شدن فرزندتان اعلان می‌گیرید."}
+                </p>
+              </div>
+              {pushState !== "done" && (
+                <Button
+                  size="sm"
+                  onClick={enablePush}
+                  disabled={pushState === "working" || (isAdmin && !previewParentId)}
+                >
+                  {pushState === "working" ? "در حال فعال‌سازی…" : "فعال‌سازی اعلان"}
+                </Button>
+              )}
+            </div>
+            {isAdmin && !previewParentId && pushState !== "done" && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                ابتدا یک والد را برای پیش‌نمایش انتخاب کنید.
+              </p>
+            )}
+            {pushError && <p className="mt-2 text-xs text-destructive">خطا: {pushError}</p>}
           </section>
         )}
 
