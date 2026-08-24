@@ -16,6 +16,7 @@ import type * as bootstrap from "../bootstrap.js";
 import type * as crons from "../crons.js";
 import type * as driverApp from "../driverApp.js";
 import type * as drivers from "../drivers.js";
+import type * as fcm from "../fcm.js";
 import type * as guard from "../guard.js";
 import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   driverApp: typeof driverApp;
   drivers: typeof drivers;
+  fcm: typeof fcm;
   guard: typeof guard;
   http: typeof http;
   notifications: typeof notifications;

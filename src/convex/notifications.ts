@@ -1,8 +1,14 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { MutationCtx, mutation, query } from "./_generated/server";
-import { requireParentActor, requireSchoolAdmin } from "./guard";
+import {
+  MutationCtx,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
+import { getSessionUser, requireParentActor, requireSchoolAdmin } from "./guard";
 
 const MAX_ATTEMPTS = 3;
 
@@ -73,43 +79,95 @@ export async function enqueueForEvent(
   }
 }
 
-/**
- * Notification Worker: drains the QUEUED outbox and "delivers" each message.
- * In v1 delivery is simulated (no FCM credentials wired yet) — swapping in a
- * real provider only changes this handler; the outbox contract stays the same.
- * Failures increment attempts; after MAX_ATTEMPTS the row is marked FAILED.
- */
-export const processOutbox = mutation({
+// ---- Internal helpers used by the FCM worker (src/convex/fcm.ts) ----
+
+/** Session check for the FCM test action (runs in the default runtime). */
+export const fcmGuardSession = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const queued = await ctx.db
+    const session = await getSessionUser(ctx);
+    return session ? { role: session.role } : null;
+  },
+});
+
+/** Next batch of QUEUED notifications (plain objects — safe to cross into an action). */
+export const listQueuedInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
       .query("notifications")
       .withIndex("by_status", (q) => q.eq("status", "QUEUED"))
       .take(50);
+    return rows.map((n) => ({
+      _id: n._id,
+      parentId: n.parentId,
+      title: n.title,
+      body: n.body,
+      attempts: n.attempts,
+    }));
+  },
+});
 
-    let sent = 0;
-    let failed = 0;
-    for (const n of queued) {
-      try {
-        // TODO(v2): replace with real FCM send (requires provider credentials).
-        await ctx.db.patch(n._id, {
-          status: "SENT",
-          sentAt: Date.now(),
-          attempts: n.attempts + 1,
-        });
-        sent++;
-      } catch (err) {
-        const attempts = n.attempts + 1;
-        const message = err instanceof Error ? err.message : "unknown error";
-        await ctx.db.patch(n._id, {
-          attempts,
-          lastError: message,
-          status: attempts >= MAX_ATTEMPTS ? "FAILED" : "QUEUED",
-        });
-        failed++;
-      }
+/** FCM tokens registered for a parent. */
+export const listParentTokensInternal = internalQuery({
+  args: { parentId: v.id("parents") },
+  handler: async (ctx, args) => {
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_parent", (q) => q.eq("parentId", args.parentId))
+      .collect();
+    return devices.map((d) => d.token);
+  },
+});
+
+/** Record delivery outcome for one outbox row. */
+export const markResultInternal = internalMutation({
+  args: { id: v.id("notifications"), ok: v.boolean(), error: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const n = await ctx.db.get(args.id);
+    if (!n) return;
+    if (args.ok) {
+      await ctx.db.patch(n._id, {
+        status: "SENT",
+        sentAt: Date.now(),
+        attempts: n.attempts + 1,
+        lastError: args.error,
+      });
+    } else {
+      const attempts = n.attempts + 1;
+      await ctx.db.patch(n._id, {
+        attempts,
+        lastError: args.error,
+        status: attempts >= MAX_ATTEMPTS ? "FAILED" : "QUEUED",
+      });
     }
-    return { picked: queued.length, sent, failed };
+  },
+});
+
+/** Register a push device (FCM token) for the signed-in parent (or admin preview). */
+export const registerDevice = mutation({
+  args: {
+    token: v.string(),
+    platform: v.union(v.literal("web"), v.literal("android")),
+    parentId: v.optional(v.id("parents")),
+  },
+  handler: async (ctx, args) => {
+    const actor = await requireParentActor(ctx, args.parentId ?? null);
+    const existing = await ctx.db
+      .query("devices")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { parentId: actor.parentId });
+      return existing._id;
+    }
+    return ctx.db.insert("devices", {
+      schoolId: actor.schoolId,
+      parentId: actor.parentId,
+      token: args.token,
+      platform: args.platform,
+      createdAt: Date.now(),
+    });
   },
 });
 

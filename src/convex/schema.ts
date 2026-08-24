@@ -192,6 +192,17 @@ const schema = defineSchema(
       .index("by_status", ["status"])
       .index("by_parent_time", ["parentId", "createdAt"]),
 
+    // Registered push devices (FCM tokens) per parent.
+    devices: defineTable({
+      schoolId: v.id("schools"),
+      parentId: v.id("parents"),
+      token: v.string(),
+      platform: v.union(v.literal("web"), v.literal("android")),
+      createdAt: v.number(),
+    })
+      .index("by_parent", ["parentId"])
+      .index("by_token", ["token"]),
+
     auditLogs: defineTable({
       schoolId: v.id("schools"),
       actorUserId: v.id("users"),

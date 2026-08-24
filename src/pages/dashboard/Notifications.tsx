@@ -11,7 +11,10 @@ import {
 } from "@/components/ui/table";
 import { api } from "@/convex/_generated/api";
 import { formatDateTime } from "@/lib/format";
-import { usePaginatedQuery } from "convex/react";
+import { useAction, usePaginatedQuery } from "convex/react";
+import { PlugZap } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, string> = {
   QUEUED: "در صف",
@@ -21,12 +24,33 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function Notifications() {
   const result = usePaginatedQuery(api.notifications.listForSchool, {}, { initialNumItems: 20 });
+  const testConnection = useAction(api.fcm.testConnection);
+  const [testing, setTesting] = useState(false);
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const res = await testConnection({});
+      if (res.ok) toast.success(res.message);
+      else toast.error(res.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "خطا در تست اتصال");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <div>
       <PageHeader
         title="لاگ اعلان‌ها"
         description="پیام‌های اطلاع‌رسانی والدین — از صف (Outbox) تا وضعیت ارسال. ارسال به‌صورت async انجام می‌شود و هرگز مسیر ثبت رویداد را مسدود نمی‌کند."
+        actions={
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleTest} disabled={testing}>
+            <PlugZap className="size-4" />
+            {testing ? "در حال تست…" : "تست اتصال FCM"}
+          </Button>
+        }
       />
 
       <div className="overflow-hidden rounded-lg border">
