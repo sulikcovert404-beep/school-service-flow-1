@@ -15,6 +15,15 @@ import "./types/global.d.ts";
 const Landing = lazy(() => import("./pages/Landing.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
+const Overview = lazy(() => import("./pages/dashboard/Overview.tsx"));
+const Students = lazy(() => import("./pages/dashboard/Students.tsx"));
+const Parents = lazy(() => import("./pages/dashboard/Parents.tsx"));
+const Drivers = lazy(() => import("./pages/dashboard/Drivers.tsx"));
+const Vehicles = lazy(() => import("./pages/dashboard/Vehicles.tsx"));
+const RoutesPage = lazy(() => import("./pages/dashboard/Routes.tsx"));
+const Services = lazy(() => import("./pages/dashboard/Services.tsx"));
+const Reports = lazy(() => import("./pages/dashboard/Reports.tsx"));
+const AuditLog = lazy(() => import("./pages/dashboard/AuditLog.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -75,7 +84,17 @@ createRoot(document.getElementById("root")!).render(
                     <Dashboard />
                   </RequireAuth>
                 }
-              />
+              >
+                <Route index element={<Overview />} />
+                <Route path="students" element={<Students />} />
+                <Route path="parents" element={<Parents />} />
+                <Route path="drivers" element={<Drivers />} />
+                <Route path="vehicles" element={<Vehicles />} />
+                <Route path="routes" element={<RoutesPage />} />
+                <Route path="services" element={<Services />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="audit" element={<AuditLog />} />
+              </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
