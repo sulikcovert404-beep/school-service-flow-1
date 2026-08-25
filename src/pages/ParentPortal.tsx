@@ -45,6 +45,8 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 
 export default function ParentPortal() {
   const ctx = useQuery(api.bootstrap.myContext);
+  // ctx === undefined → auth still loading · ctx === null → signed out.
+  const authed = ctx !== null;
   const isAdmin = ctx?.role === "school_admin" || ctx?.role === "admin";
 
   // Web Push subscription (only offered when VAPID keys are configured).
@@ -83,12 +85,42 @@ export default function ParentPortal() {
   // (the guard would reject an unscoped request and crash the page).
   const children = useQuery(
     api.parentApp.myChildren,
-    isAdmin ? (previewParentId ? { parentId: previewParentId as never } : "skip") : {},
+    isAdmin
+      ? previewParentId
+        ? { parentId: previewParentId as never }
+        : ("skip" as const)
+      : authed
+        ? ({} as Record<string, never>)
+        : ("skip" as const),
   );
   const notifications = useQuery(
     api.notifications.listForParent,
-    isAdmin ? (previewParentId ? { parentId: previewParentId as never } : "skip") : {},
+    isAdmin
+      ? previewParentId
+        ? { parentId: previewParentId as never }
+        : ("skip" as const)
+      : authed
+        ? ({} as Record<string, never>)
+        : ("skip" as const),
   );
+
+  // Signed out → friendly prompt instead of a server-side UNAUTHENTICATED crash.
+  if (ctx === null) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm rounded-lg border p-8 text-center">
+          <UserRound className="mx-auto size-8 text-muted-foreground" />
+          <h1 className="mt-4 text-lg font-semibold">پورتال والد</h1>
+          <p className="mt-2 text-sm leading-7 text-muted-foreground">
+            برای مشاهده وضعیت فرزندان خود، ابتدا وارد شوید.
+          </p>
+          <Button asChild className="mt-5 w-full">
+            <Link to="/auth?returnTo=/parent">ورود با کد یک‌بارمصرف</Link>
+          </Button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background text-foreground">

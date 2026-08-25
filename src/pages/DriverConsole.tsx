@@ -46,9 +46,17 @@ export default function DriverConsole() {
   );
   const [previewDriverId, setPreviewDriverId] = useState<string | null>(null);
 
+  // ctx === undefined → auth still loading · ctx === null → signed out.
+  const authed = ctx !== null;
   const services = useQuery(
     api.driverApp.myServices,
-    isAdmin && previewDriverId ? { driverId: previewDriverId as never } : isAdmin ? "skip" : {},
+    isAdmin && previewDriverId
+      ? { driverId: previewDriverId as never }
+      : isAdmin
+        ? ("skip" as const)
+        : authed
+          ? ({} as Record<string, never>)
+          : ("skip" as const),
   );
   const [serviceId, setServiceId] = useState<string | null>(null);
   const activeServiceId =
@@ -93,6 +101,24 @@ export default function DriverConsole() {
 
   const activeService = services?.find((s) => s._id === activeServiceId);
   const isReturnShift = activeService?.shift === "return";
+
+  // Signed out → friendly prompt instead of a server-side UNAUTHENTICATED crash.
+  if (ctx === null) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm rounded-lg border p-8 text-center">
+          <Bus className="mx-auto size-8 text-muted-foreground" />
+          <h1 className="mt-4 text-lg font-semibold">کنسول راننده</h1>
+          <p className="mt-2 text-sm leading-7 text-muted-foreground">
+            برای مشاهده سرویس‌های امروز، ابتدا وارد شوید.
+          </p>
+          <Button asChild className="mt-5 w-full">
+            <Link to="/auth?returnTo=/driver">ورود با کد یک‌بارمصرف</Link>
+          </Button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background text-foreground">
