@@ -58,7 +58,7 @@ class PendingEventQueue(private val context: Context) {
         decode(context.eventDataStore.data.first()[key] ?: "[]")
 
     private fun decode(raw: String): List<PendingEvent> =
-        runCatching { json.decodeFromString(raw) }.getOrDefault(emptyList())
+        runCatching { json.decodeFromString<List<PendingEvent>>(raw) }.getOrDefault(emptyList())
 
     companion object {
         fun newEvent(serviceId: String, studentId: String, eventType: String): PendingEvent =
