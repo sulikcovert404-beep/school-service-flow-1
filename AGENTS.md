@@ -13,7 +13,7 @@
 ## Security Rules
 - Super Admin فقط با کلید `SUPER_ADMIN_SETUP_KEY` و فقط برای اولین ادمین bootstrap می‌شود؛ بعد از آن فقط از طریق Super Admin موجود.
 - Rate limit: ۶۰۰ رویداد/دقیقه به‌ازای هر مدرسه (`checkRateLimit` در guard.ts).
-- قرارداد API اپ‌های موبایل: `docs/MOBILE_API.md` · بازبینی امنیتی: `docs/SECURITY_REVIEW.md`.
+- قرارداد API اپ‌های موبایل: `docs/MOBILE_API.md` (کلاینت رسمی Convex + auth:signIn OTP) · بازبینی امنیتی: `docs/SECURITY_REVIEW.md`.
 
 ## Architecture
 - Frontend: Vite + React 19 + TypeScript + Tailwind v4 + shadcn/ui + react-router.
@@ -32,6 +32,8 @@ src/
   pages/dashboard/ # Overview, Students, Parents, Drivers, Vehicles, Routes, Services,
                    # Reports, AuditLog, Notifications
   components/ui/   # shadcn components
+android/          # اسکلت اپ Android (Kotlin + ConvexClient رسمی) — Skeleton،
+                  # کامپایل در Android Studio (این محیط SDK ندارد)
 docs/
 ```
 
