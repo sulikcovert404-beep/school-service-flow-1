@@ -19,12 +19,13 @@
 - **Secrets**: همه کلیدها (Firebase، VAPID، Setup Key) از environment variables — هیچ secret در کد/کلاینت.
 - **Web Push**: کلید private فقط سمت سرور؛ کلید public از کوئری عمومی (طبیعتاً public).
 - **Brute-force**: محدودیت روی تلاش‌های claim کلید setup.
+- **Invite flow کامل**: ادمین‌های جدید فقط توسط Super Admin موجود (`setUserRole`) ساخته می‌شوند؛ تخصیص کاربر به تننت مدرسه فقط با `setUserSchool` (Super Admin) و با audit — کاربر عادی نمی‌تواند خودش را به مدرسه‌ای اضافه کند. ادمین پلتفرم عمداً بدون تننت است.
 
 ## یافته‌های باقی‌مانده (قبل از Production واقعی)
 
 | # | یافته | شدت | اقدام لازم |
 |---|---|---|---|
-| ۱ | ورود Guest/anonymous فعال است (برای دمو) | **High** | قبل از production غیرفعال شود — فقط OTP واقعی. |
+| ۱ | ورود Guest/anonymous فعال است (پیش‌فرض برای دمو) | **High** | ✅ کنترل فراهم شد: متغیر `ENABLE_GUEST_LOGIN=false` در Keys tab → دکمه ورود مهمان از صفحه ورود حذف و فقط OTP باقی می‌ماند. **قبل از production این متغیر را تنظیم کنید.** |
 | ۲ | OTP ایمیل بدون محدودیت تلاش در سطح Auth | Medium | rate limit روی `auth/emailOtp` یا CAPTCHA. |
 | ۳ | لاگ‌های حساس: نام دانش‌آموز در body اعلان‌ها ذخیره می‌شود | Low | Data-minimization: در production فقط نام کوچک + کد. |
 | ۴ | Retention/Archiving رویدادها پیاده نشده (Partition-ready است) | Low | قبل از مقیاس بزرگ: policy حذف/آرشیو. |

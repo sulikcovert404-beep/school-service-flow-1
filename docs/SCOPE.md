@@ -65,6 +65,7 @@ Android Apps واقعی · Live GPS / Tracking · ETA · Payments · Messaging �
 8. **دسترسی Super Admin**: تغییر نقش/غیرفعال‌سازی کاربر خودش ممنوع (`CANNOT_CHANGE_SELF`)؛ کاربر `isActive=false` در همه گاردها مثل بدون‌احراز رفتار می‌شود.
 7. **ارسال اعلان FCM واقعی وصل شد** (FCM HTTP v1 با OAuth JWT سرویس‌اکانت؛ متغیرهای `FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY`). تست اتصال: **Passed** (پروژه app-school-1ecc8). تحویل به دستگاه واقعی نیازمند ثبت توکن Push والدین (جدول `devices`) است؛ والد بدون دستگاه ثبت‌شده → وضعیت SENT با یادداشت `NO_DEVICE_REGISTERED` تا صف گیر نکند. بدون کلید → ارسال شبیه‌سازی می‌ماند.
 8. **فاز ۳ (PWA + Web Push)**: اپ Android واقعی (Kotlin) در این محیط قابل build نیست؛ PWA همان جریان (offline queue + idempotency + push) را به‌صورت نصب‌شدنی روی اندروید ارائه می‌دهد. کلیدهای VAPID تولید شده و باید در Keys tab وارد شوند تا کانال Web Push فعال شود.
+9. **فاز ۴ (Hardening production)**: ورود Guest با متغیر `ENABLE_GUEST_LOGIN=false` غیرفعال می‌شود (پیش‌فرض برای دمو فعال است). Invite flow کامل شد: ادمین‌های بعدی فقط توسط Super Admin (`setUserRole`) و تخصیص کاربر به تننت فقط با `setUserSchool` — هر دو با audit. ادمین پلتفرم عمداً بدون تننت است (`PLATFORM_ADMIN_HAS_NO_TENANT`).
 
 ## SCALE_TARGETS.md
 

@@ -24,9 +24,16 @@
 ## Super Admin (امن)
 - نقش مدیر پلتفرم فقط با **کلید Setup** فعال می‌شود: متغیر `SUPER_ADMIN_SETUP_KEY` را در Keys tab تعریف کنید → در `/admin` کلید را وارد کنید.
 - فقط برای **اولین** ادمین کار می‌کند؛ ادمین‌های بعدی فقط توسط Super Admin موجود واگذار می‌شوند. brute-force محدود + Audit Log.
+- تخصیص کاربر به تننت مدرسه فقط با Super Admin انجام می‌شود (تب کاربران → «تخصیص») و در حسابرسی ثبت می‌شود.
+
+## فاز ۴ — Hardening production
+- **غیرفعال‌سازی ورود مهمان**: متغیر `ENABLE_GUEST_LOGIN=false` را در Keys tab تعریف کنید → دکمه «ورود مهمان» از صفحه ورود حذف می‌شود و فقط OTP واقعی باقی می‌ماند. (پیش‌فرض برای دمو: فعال)
+- **Rate limiting**: حداکثر ۶۰۰ رویداد/دقیقه به‌ازای هر مدرسه (`rateLimits`).
+- **قطع دسترسی فوری**: کاربر غیرفعال‌شده توسط Super Admin در همه گاردها مثل بدون‌احراز رفتار می‌کند.
+- چک‌لیست کامل: `docs/SECURITY_REVIEW.md`.
 
 ## Stack
-Vite · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Convex (backend/db) · Convex Auth (Email OTP + Guest) · FCM + Web Push
+Vite · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Convex (backend/db) · Convex Auth (Email OTP + Guest اختیاری) · FCM + Web Push
 
 ## اجرا
 ```bash

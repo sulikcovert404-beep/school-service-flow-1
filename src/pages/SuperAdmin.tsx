@@ -158,6 +158,7 @@ function SuperAdminPanel() {
   const updateSchool = useMutation(api.superAdmin.updateSchool);
   const setUserRole = useMutation(api.superAdmin.setUserRole);
   const setUserActive = useMutation(api.superAdmin.setUserActive);
+  const setUserSchool = useMutation(api.superAdmin.setUserSchool);
 
   // Create-school form
   const [newName, setNewName] = useState("");
@@ -174,6 +175,7 @@ function SuperAdminPanel() {
 
   // Users tab
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [assignSchool, setAssignSchool] = useState<Record<string, string>>({});
   const users = usePaginatedQuery(
     api.superAdmin.listUsers,
     roleFilter === "all" ? {} : { role: roleFilter as Role },
@@ -500,7 +502,51 @@ function SuperAdminPanel() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{u.schoolName ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {u.schoolName ? (
+                          u.schoolName
+                        ) : u.role === "admin" ? (
+                          <span className="text-xs">پلتفرم</span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <Select
+                              value={assignSchool[u.id] ?? ""}
+                              onValueChange={(schoolId) =>
+                                setAssignSchool((m) => ({ ...m, [u.id]: schoolId }))
+                              }
+                            >
+                              <SelectTrigger size="sm" className="w-36">
+                                <SelectValue placeholder="انتخاب مدرسه" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {overview?.schools.map((s) => (
+                                  <SelectItem key={s._id} value={s._id}>
+                                    {s.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={!assignSchool[u.id]}
+                              onClick={async () => {
+                                try {
+                                  await setUserSchool({
+                                    userId: u.id,
+                                    schoolId: assignSchool[u.id] as never,
+                                  });
+                                  toast.success("کاربر به مدرسه تخصیص یافت");
+                                } catch {
+                                  toast.error("تخصیص ناموفق بود");
+                                }
+                              }}
+                            >
+                              تخصیص
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Select
                           value={u.role ?? "user"}

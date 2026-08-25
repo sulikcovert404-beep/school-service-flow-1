@@ -280,6 +280,43 @@ export const setUserActive = mutation({
   },
 });
 
+/**
+ * Invite flow: assign a user (school_admin / driver / parent) to a school
+ * tenant. Platform admins (role=admin) stay tenant-less on purpose — they act
+ * cross-tenant through the preview guards. Pass schoolId=undefined to detach.
+ */
+export const setUserSchool = mutation({
+  args: { userId: v.id("users"), schoolId: v.optional(v.id("schools")) },
+  handler: async (ctx, args) => {
+    const { userId: actor } = await requireSuperAdmin(ctx);
+    if (actor === args.userId) throw new Error("CANNOT_CHANGE_SELF");
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("NOT_FOUND");
+    if (target.role === "admin" && args.schoolId) {
+      throw new Error("PLATFORM_ADMIN_HAS_NO_TENANT");
+    }
+    if (args.schoolId) {
+      const school = await ctx.db.get(args.schoolId);
+      if (!school) throw new Error("NOT_FOUND");
+    }
+
+    await ctx.db.patch(args.userId, { schoolId: args.schoolId });
+    await writePlatformAudit(
+      ctx,
+      actor,
+      args.schoolId ? "user.assign_school" : "user.detach_school",
+      "user",
+      args.schoolId
+        ? `کاربر «${target.name ?? target.email ?? args.userId}» به مدرسه «${
+            (await ctx.db.get(args.schoolId))?.name ?? args.schoolId
+          }» تخصیص یافت`
+        : `کاربر «${target.name ?? target.email ?? args.userId}» از مدرسه جدا شد`,
+      args.userId,
+      args.schoolId,
+    );
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Global logs
 // ---------------------------------------------------------------------------

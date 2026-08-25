@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
+import { api } from "@/convex/_generated/api";
 import logo from "@/assets/logo.svg";
 import { ArrowRight, Loader2, Mail, UserX } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useQuery } from "convex/react";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -36,6 +38,8 @@ function resolveRedirectAfterAuth(
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
+  const authConfig = useQuery(api.users.getAuthConfig);
+  const guestLoginEnabled = authConfig?.guestLoginEnabled ?? true;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
@@ -178,17 +182,18 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         </span>
                       </div>
                     </div>
-                    
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full mt-4"
-                      onClick={handleGuestLogin}
-                      disabled={isLoading}
-                    >
-                      <UserX className="mr-2 h-4 w-4" />
-                      ورود سریع به‌عنوان مهمان
-                    </Button>
+                    {guestLoginEnabled && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full mt-4"
+                        onClick={handleGuestLogin}
+                        disabled={isLoading}
+                      >
+                        <UserX className="mr-2 h-4 w-4" />
+                        ورود سریع به‌عنوان مهمان
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </form>
