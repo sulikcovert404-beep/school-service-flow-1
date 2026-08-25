@@ -46,8 +46,8 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 export default function ParentPortal() {
   const ctx = useQuery(api.bootstrap.myContext);
   // ctx === undefined → auth still loading · ctx === null → signed out.
-  const authed = ctx !== null;
   const isAdmin = ctx?.role === "school_admin" || ctx?.role === "admin";
+  const isParent = ctx?.role === "parent";
 
   // Web Push subscription (only offered when VAPID keys are configured).
   const webPushKey = useQuery(api.notifications.getWebPushPublicKey);
@@ -89,7 +89,7 @@ export default function ParentPortal() {
       ? previewParentId
         ? { parentId: previewParentId as never }
         : ("skip" as const)
-      : authed
+      : isParent
         ? ({} as Record<string, never>)
         : ("skip" as const),
   );
@@ -99,10 +99,29 @@ export default function ParentPortal() {
       ? previewParentId
         ? { parentId: previewParentId as never }
         : ("skip" as const)
-      : authed
+      : isParent
         ? ({} as Record<string, never>)
         : ("skip" as const),
   );
+
+  // Signed in with a non-parent role (guest/driver/…) → access notice,
+  // never a server-side FORBIDDEN crash.
+  if (!isAdmin && !isParent) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm rounded-lg border p-8 text-center">
+          <UserRound className="mx-auto size-8 text-muted-foreground" />
+          <h1 className="mt-4 text-lg font-semibold">پورتال والد</h1>
+          <p className="mt-2 text-sm leading-7 text-muted-foreground">
+            این بخش مخصوص حساب‌های والد است. با ایمیل والدِ ثبت‌شده وارد شوید.
+          </p>
+          <Button asChild variant="outline" className="mt-5 w-full">
+            <Link to="/auth?returnTo=/parent">ورود با حساب دیگر</Link>
+          </Button>
+        </div>
+      </main>
+    );
+  }
 
   // Signed out → friendly prompt instead of a server-side UNAUTHENTICATED crash.
   if (ctx === null) {
