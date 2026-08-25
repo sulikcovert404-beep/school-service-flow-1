@@ -13,7 +13,7 @@
 import { createSign } from "node:crypto";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const FCM_SEND_URL = "https://fcm.googleapis.com/v1/projects";
@@ -141,7 +141,8 @@ export const testConnection = action({
  * registered device are marked SENT with a NO_DEVICE_REGISTERED note so the
  * queue never stalls; real provider failures retry up to MAX_ATTEMPTS.
  */
-export const deliverOutbox = action({
+// Internal: only the cron worker may drain the outbox — never a public client.
+export const deliverOutbox = internalAction({
   args: {},
   handler: async (
     ctx,

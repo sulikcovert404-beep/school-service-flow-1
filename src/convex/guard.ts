@@ -44,18 +44,20 @@ export async function getSessionUser(ctx: QueryCtx): Promise<SessionUser | null>
  * the client. Deny by default: unauthenticated users and non-admin roles are rejected.
  */
 export async function requireSchoolAdmin(ctx: QueryCtx): Promise<AdminContext> {
-  const userId = await getAuthUserId(ctx);
-  if (userId === null) {
+  // getSessionUser enforces platform-level deactivation (isActive === false)
+  // in addition to authentication — a deactivated school admin is treated as
+  // signed out everywhere.
+  const session = await getSessionUser(ctx);
+  if (!session) {
     throw new Error("UNAUTHENTICATED");
   }
-  const user = await ctx.db.get(userId);
-  if (!user || (user.role !== "school_admin" && user.role !== "admin")) {
+  if (session.role !== "school_admin" && session.role !== "admin") {
     throw new Error("FORBIDDEN");
   }
-  if (!user.schoolId) {
+  if (!session.schoolId) {
     throw new Error("NO_SCHOOL");
   }
-  return { userId, schoolId: user.schoolId };
+  return { userId: session.userId, schoolId: session.schoolId };
 }
 
 /** Same check, for mutations. */

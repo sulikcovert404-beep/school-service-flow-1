@@ -1,5 +1,19 @@
 # SECURITY_REVIEW.md — بازبینی امنیتی (فاز Production-Hardening)
 
+> **بازبینی نهایی (۲۰۲۶-۰۸-۲۵)** — ممیزی کامل همه ۴۰+ تابع عمومی Convex انجام شد:
+>
+> | یافته | شدت | وضعیت |
+> |---|---|---|
+> | `requireSchoolAdmin` چک `isActive` نداشت — مدیر مدرسه غیرفعال‌شده هنوز دسترسی کامل داشت | **High** | ✅ رفع شد — حالا از `getSessionUser` استفاده می‌کند (غیرفعال = بدون احراز) |
+> | `fcm.deliverOutbox` action عمومی بود — هر کلاینتی می‌توانست صف اعلان‌ها را تخلیه کند | **Medium** | ✅ رفع شد — `internalAction` + cron از `internal.fcm` فراخوانی می‌کند |
+> | همه ماژول‌های موجودیت (students/parents/drivers/vehicles/routes/services/attendance/audit) گارد تننت دارند | — | ✅ تأیید شد (۲۸ نقطه فراخوانی گارد) |
+> | `parentApp` / `driverApp` / `notifications.registerDevice` از actor-guard نقش‌محور استفاده می‌کنند | — | ✅ تأیید شد |
+> | `superAdmin.*` همه با `requireSuperAdmin` + Audit Log | — | ✅ تأیید شد |
+> | توابع عمومی بدون گارد (مورد تأیید): `bootstrap.myContext` (فقط داده خود کاربر)، `users.getAuthConfig` (پرچم عمومی)، `notifications.getWebPushPublicKey` (کلید عمومی VAPID)، `users.currentUser` (فقط خود کاربر) | — | ✅ سالم |
+> | `bootstrap.seedDemoData`: هر کاربر احرازشده می‌تواند یک مدرسه دمو بسازید (idempotent به ازای هر کاربر) | Low | پذیرفته‌شده برای دمو — قبل از production محدود شود |
+>
+> **نتیجه: هیچ یافته Critical/High باز باقی نمانده است.**
+
 > تاریخ: ۲۰۲۶-۰۸-۲۴ · محدوده: نسخه فعلی پلتفرم (فاز ۱+۲+۳)
 
 ## یافته‌های رفع‌شده در این فاز
