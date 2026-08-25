@@ -25,7 +25,7 @@ data class SignInResult(
  *   4. signOut()
  */
 class AuthRepository(
-    private val convex: ConvexClientWithAuth,
+    private val convex: ConvexClientWithAuth<String>,
     private val session: SessionStore,
     private val provider: ConvexAuthProvider,
 ) {
@@ -79,17 +79,6 @@ class AuthRepository(
 
     private fun applyTokens(tokens: AuthTokens) {
         val access = tokens.token ?: return
-        val refresh = tokens.refreshToken
-        provider.onTokensUpdated(access, refresh ?: session.refreshToken ?: "")
-        if (refresh != null) session.refreshToken = refresh
-    }
-
-    companion object {
-        /** Wire the refresh hook once at app start (see SchoolServiceApp). */
-        fun installRefreshBridge(repo: AuthRepository) {
-            AuthBridge.onRefreshRequested = { refreshToken ->
-                runCatching { repo.refresh(refreshToken) }.getOrNull()
-            }
-        }
+        provider.onTokensUpdated(access, tokens.refreshToken)
     }
 }

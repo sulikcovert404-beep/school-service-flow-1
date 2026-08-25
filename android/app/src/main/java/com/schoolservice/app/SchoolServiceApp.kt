@@ -11,7 +11,7 @@ import dev.convex.android.ConvexClientWithAuth
  */
 class SchoolServiceApp : Application() {
 
-    lateinit var convex: ConvexClientWithAuth
+    lateinit var convex: ConvexClientWithAuth<String>
         private set
 
     lateinit var session: SessionStore

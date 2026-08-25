@@ -10,7 +10,6 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.schoolservice.app.SchoolServiceApp
-import dev.convex.android.ConvexClientWithAuth
 import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
 

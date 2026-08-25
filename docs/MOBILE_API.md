@@ -76,9 +76,24 @@ convex.action<SignInResult>("auth:signIn", mapOf("refreshToken" to savedRefreshT
 convex.action("auth:signOut", emptyMap())
 ```
 
-سپس `ConvexClientWithAuth` را با یک `AuthProvider` سفارشی بسازید که:
-- `getToken()` → access token ذخیره‌شده را برگرداند
-- `refreshToken()` → مرحله ۳ بالا را صدا بزند و توکن‌ها را عوض کند
+سپس `ConvexClientWithAuth<String>` را با یک `AuthProvider<String>` سفارشی بسازید — اینترفیس **رسمی** SDK (تأییدشده از سورس convex-mobile، نسخه 0.8.0):
+
+```kotlin
+interface AuthProvider<T> {
+    suspend fun login(context: Context, onIdToken: (String?) -> Unit): Result<T>
+    suspend fun loginFromCache(onIdToken: (String?) -> Unit): Result<T>  // پیش‌فرض: NotImplementedError
+    suspend fun logout(context: Context): Result<Void?>
+    fun extractIdToken(authResult: T): String
+}
+```
+
+الگوی پیاده‌سازی (در `android/app/.../ConvexAuthProvider.kt` همین ریپو، مرجع کامل):
+- callback `onIdToken` را ذخیره کنید؛ اگر توکن کش‌شده دارید همان‌جا `onIdToken(token)` صدا بزنید
+- بعد از verify/refresh موفق، `onTokensUpdated` توکن تازه را از طریق همان callback به کلاینت push می‌کند
+- یک‌بار در شروع Activity: `convex.login(context)` (callback را ثبت می‌کند؛ بدون سشن fail بی‌ضرر است)
+
+⚠️ `subscribe` برمی‌گرداند `Flow<Result<T>>` — با `result.onSuccess { }` جمع کنید (نه مستقیم T).
+⚠️ `ConvexClientWithAuth` بدون type parameter استفاده نکنید — همیشه `ConvexClientWithAuth<String>`.
 
 (این همان پروتکلی است که کلاینت وب React هم استفاده می‌کند — هیچ endpoint اضافه‌ای لازم نیست.)
 

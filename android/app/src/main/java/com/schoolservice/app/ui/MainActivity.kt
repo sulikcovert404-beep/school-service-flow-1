@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import com.schoolservice.app.SchoolServiceApp
 import com.schoolservice.app.auth.AuthRepository
 import com.schoolservice.app.driver.SyncWorker
@@ -44,8 +45,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as SchoolServiceApp
         val auth = AuthRepository(app.convex, app.session, app.authProvider)
-        AuthRepository.installRefreshBridge(auth)
         SyncWorker.schedule(this)
+
+        // Register the auth callback with the client ONCE. If a cached session
+        // exists it is pushed immediately; after an OTP verify the fresh token
+        // is pushed through the same callback (see ConvexAuthProvider).
+        lifecycleScope.launch {
+            runCatching { app.convex.login(applicationContext) }
+        }
 
         setContent {
             MaterialTheme {

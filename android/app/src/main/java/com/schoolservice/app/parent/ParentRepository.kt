@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.map
  * Parent app data — everything is a reactive Convex subscription, exactly like
  * the web Parent Portal. No polling anywhere.
  */
-class ParentRepository(private val convex: ConvexClientWithAuth) {
+class ParentRepository(private val convex: ConvexClientWithAuth<String>) {
 
     /** Live today-status of all children (Today Status + Timeline source). */
     fun myChildren(): Flow<String?> =

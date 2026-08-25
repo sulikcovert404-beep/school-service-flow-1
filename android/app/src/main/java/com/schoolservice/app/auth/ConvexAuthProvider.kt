@@ -1,5 +1,6 @@
 package com.schoolservice.app.auth
 
+import android.content.Context
 import dev.convex.android.AuthProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -7,35 +8,65 @@ import kotlinx.coroutines.withContext
 /**
  * Bridges the stored Convex Auth session to ConvexClientWithAuth.
  *
- * NOTE (skeleton): the exact AuthProvider override signatures must be checked
- * against dev.convex:android-convexmobile:0.8.0 — the contract here follows the
- * documented pattern (getToken / refreshToken). The refresh path re-runs
- * auth:signIn with the stored refreshToken, which is the same protocol the web
- * client uses (verified against @convex-dev/auth server source).
+ * Implements the OFFICIAL AuthProvider<String> interface (verified against the
+ * convex-mobile repo, android-convexmobile 0.8.0):
+ *
+ *   interface AuthProvider<T> {
+ *       suspend fun login(context: Context, onIdToken: (String?) -> Unit): Result<T>
+ *       suspend fun loginFromCache(onIdToken: (String?) -> Unit): Result<T>
+ *       suspend fun logout(context: Context): Result<Void?>
+ *       fun extractIdToken(authResult: T): String
+ *   }
+ *
+ * Our T is the Convex Auth access-token JWT. The OTP flow itself is driven by
+ * AuthRepository (public auth:signIn action); after a successful verify/refresh
+ * it calls [onTokensUpdated], which pushes the fresh JWT to the client through
+ * the registered onIdToken callback.
  */
-class ConvexAuthProvider(private val session: SessionStore) : AuthProvider {
+class ConvexAuthProvider(private val session: SessionStore) : AuthProvider<String> {
 
-    override suspend fun getToken(): String? = session.accessToken
+    private var onIdToken: ((String?) -> Unit)? = null
 
-    override suspend fun refreshToken(token: String?): String? = withContext(Dispatchers.IO) {
-        val refresh = token ?: session.refreshToken ?: return@withContext null
-        // auth:signIn({ refreshToken }) -> { tokens: { token, refreshToken } }
-        // Implemented in AuthRepository.refresh(); kept decoupled to avoid a
-        // circular dependency between client and repository.
-        AuthBridge.onRefreshRequested(refresh)
+    override suspend fun login(context: Context, onIdToken: (String?) -> Unit): Result<String> =
+        withContext(Dispatchers.IO) {
+            this@ConvexAuthProvider.onIdToken = onIdToken
+            val token = session.accessToken
+            if (token != null) {
+                onIdToken(token)
+                Result.success(token)
+            } else {
+                // No session yet — the OTP UI flow will call onTokensUpdated later.
+                Result.failure(IllegalStateException("OTP_LOGIN_PENDING"))
+            }
+        }
+
+    override suspend fun loginFromCache(onIdToken: (String?) -> Unit): Result<String> =
+        withContext(Dispatchers.IO) {
+            this@ConvexAuthProvider.onIdToken = onIdToken
+            val token = session.accessToken
+            if (token != null) {
+                onIdToken(token)
+                Result.success(token)
+            } else {
+                Result.failure(IllegalStateException("NO_CACHED_SESSION"))
+            }
+        }
+
+    override suspend fun logout(context: Context): Result<Void?> = withContext(Dispatchers.IO) {
+        session.clear()
+        onIdToken?.invoke(null)
+        Result.success<Void?>(null)
     }
 
-    fun onTokensUpdated(accessToken: String, refreshToken: String) {
+    override fun extractIdToken(authResult: String): String = authResult
+
+    /**
+     * Called by AuthRepository after a successful OTP verify or token refresh.
+     * Pushes the fresh access token into the client (and persists it).
+     */
+    fun onTokensUpdated(accessToken: String, refreshToken: String?) {
         session.accessToken = accessToken
-        session.refreshToken = refreshToken
+        if (refreshToken != null) session.refreshToken = refreshToken
+        onIdToken?.invoke(accessToken)
     }
-}
-
-/**
- * Lightweight hook the app wires at startup so the provider can refresh
- * without depending on the repository directly.
- */
-object AuthBridge {
-    @Volatile
-    var onRefreshRequested: suspend (refreshToken: String) -> String? = { null }
 }

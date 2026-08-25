@@ -68,7 +68,7 @@ data class RosterResponse(val service: RosterService, val rows: List<RosterRow> 
  * the primary action is a single tap (MVP UX principle).
  */
 @Composable
-fun DriverScreen(convex: ConvexClientWithAuth, modifier: Modifier = Modifier) {
+fun DriverScreen(convex: ConvexClientWithAuth<String>, modifier: Modifier = Modifier) {
     val json = Json { ignoreUnknownKeys = true }
     val scope = rememberCoroutineScope()
     val repo = remember { DriverRepository(convex) }

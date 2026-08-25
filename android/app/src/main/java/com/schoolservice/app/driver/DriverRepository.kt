@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class RecordEventResult(val duplicate: Boolean? = null, val eventId: String? = null)
 
-class DriverRepository(private val convex: ConvexClientWithAuth) {
+class DriverRepository(private val convex: ConvexClientWithAuth<String>) {
 
     private val json = Json { ignoreUnknownKeys = true }
 

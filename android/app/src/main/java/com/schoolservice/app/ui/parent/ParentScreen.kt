@@ -65,7 +65,7 @@ private val faTime = SimpleDateFormat("HH:mm", Locale("fa"))
  * Everything is a reactive subscription — updates arrive automatically.
  */
 @Composable
-fun ParentScreen(convex: ConvexClientWithAuth, modifier: Modifier = Modifier) {
+fun ParentScreen(convex: ConvexClientWithAuth<String>, modifier: Modifier = Modifier) {
     val repo = remember { ParentRepository(convex) }
     val json = Json { ignoreUnknownKeys = true }
     var children by remember { mutableStateOf<List<Child>>(emptyList()) }
