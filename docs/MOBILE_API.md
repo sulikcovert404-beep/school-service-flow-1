@@ -1,7 +1,49 @@
 # MOBILE_API.md — قرارداد API برای اپ‌های Android (Kotlin / Jetpack Compose)
 
 > بک‌اند از قبل کامل و تست‌شده است. اپ اندروید فقط یک کلاینت جدید است — **هیچ تغییر بک‌اندی لازم نیست**.
-> ترنسپورت: Convex WebSocket API (توصیه‌شده) یا Convex HTTP API. SDK رسمی: `convex-android` (Kotlin).
+> ترنسپورت: **کلاینت رسمی Convex اندروید** (`dev.convex:android-convexmobile`) — بدون Retrofit/REST دستی.
+
+## ۰. کلاینت رسمی Convex (ترنسپورت اصلی)
+
+نیازی به لایه HTTP دستی نیست. `ConvexClient` مستقیماً query/mutation/action بک‌اند را اجرا می‌کند و subscriptionها را به‌صورت **Flow** ری‌اکتیو می‌گیرد:
+
+```kotlin
+// build.gradle.kts
+plugins { kotlin("plugin.serialization") version "1.9.0" }
+dependencies {
+    implementation("dev.convex:android-convexmobile:0.8.0@aar") { isTransitive = true }
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+}
+
+// Application — یک instance برای کل عمر پروسه
+class App : Application() {
+    lateinit var convex: ConvexClient
+    override fun onCreate() {
+        super.onCreate()
+        convex = ConvexClient("https://<deployment>.convex.cloud")
+    }
+}
+
+// Subscription زنده (مثلاً roster راننده) — مثل وب reactive است:
+scope.launch {
+    convex.subscribe<Roster>("driverApp:serviceRoster",
+        args = mapOf("serviceId" to serviceId)).collect { result ->
+        result.onSuccess { ui.update(it) }
+    }
+}
+
+// ثبت رویداد (idempotent):
+val res = convex.mutation<RecordEventResult>("driverApp:recordEvent", args = mapOf(
+    "serviceId" to serviceId, "studentId" to studentId,
+    "eventType" to "PICKED_UP", "idempotencyKey" to key,
+))
+```
+
+نکات:
+- `duplicate: true` در پاسخ = retry تکراری بوده → مثل موفقیت رفتار کنید.
+- خطاها: `ConvexError` / `ServerError` را بگیرید؛ `RATE_LIMITED` → backoff نمایی.
+- URL deployment را با build flavor جدا کنید (debug/release).
+- **احراز هویت**: `ConvexClientWithAuth` + پیاده‌سازی سفارشی `AuthProvider` برای Convex Auth (OTP) — Auth0/Clerk آماده‌اند ولی ما OTP خودمان را داریم؛ پل کوچک auth در بخش ۱.
 
 ## ۱. احراز هویت
 
@@ -11,6 +53,7 @@
   2. همان تابع با `{ email, code }` → session token.
 - توکن را در **EncryptedSharedPreferences / Keystore** نگه دارید (هرگز plaintext).
 - نقش‌ها: `school_admin | driver | parent | admin` — نقش کاربر از `bootstrap.myContext` خوانده می‌شود.
+- **پل Auth برای اندروید**: `AuthProvider` سفارشی که توکن Convex Auth را بعد از OTP تأییدشده به `ConvexClientWithAuth` می‌دهد. اگر مسیر مستقیم OTP از SDK ممکن نشد، یک `httpAction` کوچک سمت بک‌اند اضافه می‌شود (تنها تغییر بک‌اندی احتمالی این فاز).
 
 ## ۲. اپ راننده (Driver App)
 
