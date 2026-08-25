@@ -3,7 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("com.google.gms.google-services")
+    // Optional: only applied when google-services.json exists (local dev or CI secret).
+    if (file("google-services.json").exists()) {
+        id("com.google.gms.google-services")
+    }
 }
 
 android {
@@ -17,9 +20,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        // Convex deployment URL — override per build flavor.
-        // In production, inject from local.properties (NOT committed).
-        resValue("string", "convex_url", "https://YOUR-DEPLOYMENT.convex.cloud")
+        // Convex deployment URL — from CI secret CONVEX_URL, else the local placeholder.
+        resValue("string", "convex_url", System.getenv("CONVEX_URL") ?: "https://YOUR-DEPLOYMENT.convex.cloud")
     }
 
     buildTypes {

@@ -15,6 +15,18 @@
    - فایل `google-services.json` را در `app/` بگذارید
 4. `Run` ▶️
 
+## Build آنلاین (GitHub Actions — بدون Android Studio)
+
+workflow آماده است: `.github/workflows/android-build.yml`
+
+1. در GitHub ریپو: **Settings → Secrets and variables → Actions → New repository secret**
+   - `CONVEX_URL` (الزامی) — آدرس deployment Convex، مثلاً `https://xxxx.convex.cloud`
+   - `GOOGLE_SERVICES_JSON` (اختیاری) — کل محتوای فایل google-services.json برای Push والد
+2. تب **Actions** → workflow «Android APK» → **Run workflow** (یا هر push به پوشه `android/`)
+3. بعد از اتمام → همان اجرا → بخش **Artifacts** → دانلود `app-debug-apk` → نصب روی گوشی
+
+اگر `GOOGLE_SERVICES_JSON` تعریف نشده باشد، build بدون پلاگین Firebase انجام می‌شود (اپ کار می‌کند، فقط Push والد اندروید غیرفعال است).
+
 ## ساختار
 
 ```
