@@ -43,7 +43,7 @@ val res = convex.mutation<RecordEventResult>("driverApp:recordEvent", args = map
 - `duplicate: true` در پاسخ = retry تکراری بوده → مثل موفقیت رفتار کنید.
 - خطاها: `ConvexError` / `ServerError` را بگیرید؛ `RATE_LIMITED` → backoff نمایی.
 - URL deployment را با build flavor جدا کنید (debug/release).
-- **احراز هویت**: `ConvexClientWithAuth` + پیاده‌سازی سفارشی `AuthProvider` برای Convex Auth (OTP) — Auth0/Clerk آماده‌اند ولی ما OTP خودمان را داریم؛ پل کوچک auth در بخش ۱.
+- **احراز هویت**: `ConvexClientWithAuth` + `AuthProvider` سفارشی — پروتکل تأییدشده از سورس `@convex-dev/auth` (بخش ۱).
 
 ## ۱. احراز هویت
 
@@ -53,7 +53,34 @@ val res = convex.mutation<RecordEventResult>("driverApp:recordEvent", args = map
   2. همان تابع با `{ email, code }` → session token.
 - توکن را در **EncryptedSharedPreferences / Keystore** نگه دارید (هرگز plaintext).
 - نقش‌ها: `school_admin | driver | parent | admin` — نقش کاربر از `bootstrap.myContext` خوانده می‌شود.
-- **پل Auth برای اندروید**: `AuthProvider` سفارشی که توکن Convex Auth را بعد از OTP تأییدشده به `ConvexClientWithAuth` می‌دهد. اگر مسیر مستقیم OTP از SDK ممکن نشد، یک `httpAction` کوچک سمت بک‌اند اضافه می‌شود (تنها تغییر بک‌اندی احتمالی این فاز).
+- **پل Auth برای اندروید — بدون تغییر بک‌اند (تأییدشده از سورس):** `signIn` یک action عمومی Convex است و از خود `ConvexClient` اندروید فراخوانی می‌شود:
+
+```kotlin
+// ۱) ارسال کد به ایمیل → { started: true }
+convex.action("auth:signIn", mapOf(
+    "provider" to "email-otp",
+    "params" to mapOf("email" to email),
+))
+
+// ۲) تأیید کد → { tokens: { token, refreshToken } }
+val res = convex.action<SignInResult>("auth:signIn", mapOf(
+    "provider" to "email-otp",
+    "params" to mapOf("email" to email, "code" to code),
+))
+// res.tokens!!.token / refreshToken را در EncryptedSharedPreferences ذخیره کن
+
+// ۳) تازه‌سازی session (وقتی access token نزدیک انقضا بود)
+convex.action<SignInResult>("auth:signIn", mapOf("refreshToken" to savedRefreshToken))
+
+// ۴) خروج
+convex.action("auth:signOut", emptyMap())
+```
+
+سپس `ConvexClientWithAuth` را با یک `AuthProvider` سفارشی بسازید که:
+- `getToken()` → access token ذخیره‌شده را برگرداند
+- `refreshToken()` → مرحله ۳ بالا را صدا بزند و توکن‌ها را عوض کند
+
+(این همان پروتکلی است که کلاینت وب React هم استفاده می‌کند — هیچ endpoint اضافه‌ای لازم نیست.)
 
 ## ۲. اپ راننده (Driver App)
 
