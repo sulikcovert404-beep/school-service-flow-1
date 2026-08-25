@@ -3,10 +3,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
-    // Optional: only applied when google-services.json exists (local dev or CI secret).
-    if (file("google-services.json").exists()) {
-        id("com.google.gms.google-services")
-    }
+}
+
+// Optional Firebase: applied only when google-services.json exists (local dev
+// or CI secret). Must live OUTSIDE the plugins{} block — that block has no
+// Project access (file() is unresolved there).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {
